@@ -1,0 +1,226 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+use Getopt::Long;
+
+
+#############################################################
+##
+## Global Variables
+##
+############################################################# 
+my $USER="jorussel";
+my $HOST="russellcentral.2y.net";
+
+my $PORT="222";
+
+#what are we doing
+my $OPERATION = "";
+
+#filenames passed in
+my @FILES;
+
+#############################################################
+##
+## Constants
+##
+############################################################# 
+# save default host so we can see if it was changed on the command line
+my $DEFAULT_HOST="$HOST";
+
+# the port you use at home. Its silly but it really does cut down
+# on a lot of illintentioned traffic.
+my $NON_STANDARD_PORT=222;
+
+
+#############################################################
+##
+## Main Execution
+##
+############################################################# 
+
+my $result = GetOptions ("host=s" => \$HOST,
+						 "port=i" => \$PORT,
+						 "user=s" => \$USER,
+#						 "help" => \&print_usage,
+						 "usage" => \&print_usage,);
+
+
+
+print_usage() if (!$result);
+
+# you use a non-standard port at home, so if we are using the default
+# host, use the non-standard port
+if ($HOST eq $DEFAULT_HOST)
+{
+	$PORT = $NON_STANDARD_PORT;
+}  
+
+# set these constants now so they pick up the value of $PORT
+my $SSH = "ssh -p $PORT";
+my $SCP = "scp -P $PORT";
+
+
+while (@ARGV)
+{
+    if ((defined $ARGV[0])&&
+		   ($ARGV[0] eq "get") ||
+		   ($ARGV[0] eq "put") ||
+		   ($ARGV[0] eq "dump") ||
+		   ($ARGV[0] eq "key") ||
+		   ($ARGV[0] eq "files") ||
+		   ($ARGV[0] eq "init") ||
+		   ($ARGV[0] eq "sftp"))
+    {
+        $OPERATION = shift;
+    }
+    else
+    {
+        #Pass all left over args as filenames
+        push(@FILES, shift);
+    }
+}
+
+sub print_usage
+{
+    print "Usage: jssh [-host hostname] [-user username] get|put|sftp files\n";
+	print "\tjssh -host hostname [-user username] init|key|files\n";
+    exit 1;
+}
+
+# verify that all the files in the @files_to_check array are readable
+sub check_for_files {
+	my @files_to_check = @_;
+    if (@files_to_check != 0) {
+        foreach my $FILE (@files_to_check) {
+            if ( ! -r $FILE) {
+                print "$FILE is not a file or it can not be read\n";
+                print_usage;
+            }
+        }
+    }
+}
+
+
+my $NEW_PWD = $ENV{PWD};
+# Replace home environment variable with ~ because home dirs are not
+# always the same on different systems
+$NEW_PWD =~ s,$ENV{HOME},~,g;
+
+#Copies files to the corresponding directory on the remote host
+#Home directory is substituted
+if ($OPERATION eq "put")
+{
+
+    if (@FILES == 0) {
+        print ("No files specified\n");
+        print_usage();
+    } else {
+        check_for_files(@FILES);
+    }
+
+    foreach (@FILES)
+	{
+		#print "du is $_\n";
+		$_ =~ s!(.+)!"$1"!g; # quote each file just in case there are spaces
+	}
+
+	$NEW_PWD =~ s!(.+)!"$1"!g; # quote destination dir in case there are spaces
+	$NEW_PWD =~ s! !\\ !g; # we have to escape spaces even after quoting.
+	# This is because the shell itself stips out one level of escaping,
+	# and then we need another level for scp itself.  Strange but true.
+
+	print ("copying @FILES into $NEW_PWD on $HOST \n");
+    print "scp -rp @FILES $USER\@$HOST:$NEW_PWD\n";
+	system ("$SCP -rp @FILES $HOST:$NEW_PWD");
+}
+
+#Gets files from the corresponding directory on the remote host
+#Home directory is substituted
+elsif ($OPERATION eq "get")
+{
+    if (@FILES == 0)
+    {
+        print ("No files specified\n");
+        print_usage();
+    }
+
+	$" = "\n";
+    print ("getting\n----------\n@FILES\n----------\nfrom $NEW_PWD on $HOST\n");
+	
+	my $REQUESTED_FILES;
+
+	for my $file (@FILES){
+		# we have to escape spaces even after quoting.
+		# This is because the shell stips out one level of escaping,
+		# and then we need another level for scp itself.  Strange but true.
+		$file =~ s! !\\ !g;
+
+		# If we pass in an absolute path, just use that instead of prepending
+		# the PWD.  Else assume we are talking about files in the PWD
+		if ($file !~ m|^/|){
+			$REQUESTED_FILES .= " $NEW_PWD/$file";
+		} else{
+			$REQUESTED_FILES .= " $file";
+		}
+	}
+	
+	# quote destination dir in case there are spaces
+	$REQUESTED_FILES =~ s!(.+)!"$1"!g;
+
+#	print "requested files are $REQUESTED_FILES\n";
+    system ("$SCP -rp $HOST:$REQUESTED_FILES .");
+}
+
+#opens sftp connection to remote host
+elsif ($OPERATION eq "sftp")
+{
+    print("sftping to $HOST...\n");
+    system("sftp $HOST");
+}
+
+#copies files into users home directory on remote host
+elsif ($OPERATION eq "dump")
+{
+    if (@FILES == 0)
+    {
+        print ("No files specified\n");
+        print_usage();
+    }
+    else
+    {
+        check_for_files(@FILES);
+    }
+
+    foreach (@FILES)
+	{
+		#print "du is $_\n";
+		$_ =~ s!(.+)!"$1"!g; # quote each file just in case there are spaces
+	}
+
+    print("Dumping @FILES into home directory on $HOST\n");
+    system ("$SCP -rp @FILES $HOST:~");
+}
+
+#Copy bash init scripts and .inputrc into home directory on remote host.
+elsif ($OPERATION eq "init" or $OPERATION eq "key" or $OPERATION eq "files")
+{
+    system ("jjr-remote-bootstrap $OPERATION $HOST");
+}
+
+#if no operation is specified, just ssh to the machine
+elsif ($OPERATION eq "")
+{
+    print ("Logging into $USER\@$HOST");
+    system ("$SSH -Y $USER\@$HOST");
+    exit 0;
+}
+else
+{
+    print("Invalid operation specified\n");
+    print_usage();
+}
+
+
+

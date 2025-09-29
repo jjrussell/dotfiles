@@ -1,0 +1,24 @@
+#!/bin/bash
+
+function jjr-dialog ()
+{
+    if [ -e $(which zenity &> /dev/null) ] && [ -n "$DISPLAY" ]  ; then
+	zenity --title "$1" --info --text "$2" > /dev/null 2>&1
+    elif [ -e $(which xmessage &> /dev/null) ] && [ -n "$DISPLAY" ] ; then
+	xmessage -bg black -fg green -bd white -center \
+	    -buttons OK -default OK "$2" &> /dev/null
+    else
+	echo "$1: $2"
+    fi
+}
+
+if [ -n "$1" ] ; then
+        # sleep so you have time to get your fingers off the keys
+        # before it starts typing things. 
+        # If you have this mapped to control something and you still 
+        # have the control key down, bad things.
+	sleep 0.3
+	echo -e "String $*" | xmacroplay :0
+else
+    jjr-dialog "Missing argument" "No argument passed in to have xmacroplay type"
+fi

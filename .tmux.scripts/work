@@ -1,0 +1,36 @@
+# I keep this file in a directory containing other scripts.
+#
+# In my .tmux.conf file, I source this file like so:
+#   bind W source-file ~/.tmux.scripts/work_w_tests
+#
+# So when I open a new tmux session, I just run binding + W to launch all my window and panes.
+
+# Rename session
+rename-session work
+
+# Create two new windows
+neww
+neww
+
+# Rename the three windows
+rename-window -t 1 main
+rename-window -t 2 server
+rename-window -t 3 vagrant
+
+# Select window[0] (I start my index at 1)
+selectw -t 1
+
+# Horizontal 50% split and run command
+splitw -h -p 50 'echo first'
+
+# Vertical 50% split and run rails console
+splitw -v -p 50 'echo second'
+
+# Select pane[1]
+selectp -t 1
+
+# Horizontal 50% split
+splitw -h -p 50
+
+# Select pane[0]
+selectp -t 0

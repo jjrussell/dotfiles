@@ -1,0 +1,10 @@
+#!/bin/bash
+
+
+if wmctrl -m | egrep -oq 'ON' ; then
+    wmctrl -k off
+# elif wmctrl -m | egrep -oq 'OFF' ; then
+#     wmctrl -k off
+else
+    wmctrl -k on
+fi

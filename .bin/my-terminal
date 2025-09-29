@@ -1,0 +1,68 @@
+#!/bin/bash
+
+function jjr-dialog ()
+{
+    if [ -e $(which zenity &> /dev/null) ] && [ -n "$DISPLAY" ]  ; then
+        zenity --title "$1" --info --text "$2" > /dev/null 2>&1
+    elif [ -e $(which xmessage &> /dev/null) ] && [ -n "$DISPLAY" ] ; then
+        xmessage -bg black -fg green -bd white -center \
+                 -buttons OK -default OK "$2" &> /dev/null
+    else
+        echo "$1: $2"
+    fi
+}
+
+if [ $(uname) = "Darwin" ] ; then
+    # how to get Terminal to open in a specific directory?
+    if pgrep tmux 2>&1 > /dev/null ; then
+        /usr/local/bin/tmux new-window -n new
+    else 
+        if [ -d ~/Applications/iTerm.app ] ; then
+            open -a iTerm
+        else
+            open -a Terminal
+        fi
+    fi
+    exit
+fi
+
+# Use program in JJR_TERM if there, else try some common ones
+#terminals=( "terminator" "gnome-terminal --geometry=80x40" "$JJR_TERM" aterm xterm)
+terminals=( "gnome-terminal --geometry=120x60" "$JJR_TERM" aterm xterm)
+
+if [ "$1" = "root" ] ; then
+    shift
+    exec sudo $0 $*
+fi
+
+shopt -s execfail
+
+
+# In case we are being called as a nautilus script
+if [ -n "$NAUTILUS_SCRIPT_CURRENT_URI" ] ; then
+    base=`echo $NAUTILUS_SCRIPT_CURRENT_URI | cut -d'/' -f3-`
+    if [ -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ]; then
+        dir=$base
+    else
+        while [ -n "$1" -a ! -d "$base/$1" ]; do shift; done
+        dir="$base/$1"
+    fi
+    shift
+    cd $dir
+fi
+
+for i in "${terminals[@]}" ; do
+    COMMAND_FLAG=""
+    if [ "$1" = "-e" ] ; then
+        #gnome-terminal handles -e differently than all other terminals
+        if echo $i | grep -q "gnome-terminal" ; then
+            COMMAND_FLAG="-x"
+            shift
+        fi
+    fi
+    echo "Launching $i $COMMAND_FLAG \"$@\""
+    exec $i $COMMAND_FLAG "$@"
+    echo "Error launching '$i' with args '$@'.  Trying the next one..."
+done
+
+jjr-dialog "Holy Crap" "No terminal program found?!?!"

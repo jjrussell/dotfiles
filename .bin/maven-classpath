@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# sort -r makes it so that the latest version is first in the classpath
+find ~/.m2 -name "*.jar" | sort -r | ruby -ne 'print
+$_.gsub("\n",":")'
+
+
+if {[info exists POOP] && $POOP } { puts yes }

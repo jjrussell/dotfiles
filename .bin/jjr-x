@@ -1,0 +1,25 @@
+#!/bin/sh
+
+HOME_HOSTNAME="beethoven"
+LOG_FILE="/tmp/xoutput.log"
+#WORK_HOSTNAME="brukner"
+
+if [ "$1" = "-minimal" ] ; then
+    export DISPLAY=:1
+    /usr/bin/xsetroot -solid black
+    xbindkeys
+    exec /usr/bin/metacity
+fi
+
+if [ $HOSTNAME = $HOME_HOSTNAME ] ; then
+    echo "Starting home layout" > $LOG_FILE
+    exec startx -- -layout layout-home >> $LOG_FILE 2>&1
+elif [ -n "$1" ] && [ "$1" = "projector" ] ; then
+    exec startx $0 -minimal -- :1  -layout layout-work-projector
+elif [ -n "$1" ] && [ "$1" = "new" ] ; then
+    exec startx $0 -minimal -- :1
+elif [ -n "$1" ] && [ "$1" = "xin" ] ; then
+    exec startx -- -layout layout-work-xinerama > $LOG_FILE 2>&1
+else
+    exec startx "$@" > $LOG_FILE 2>&1
+fi

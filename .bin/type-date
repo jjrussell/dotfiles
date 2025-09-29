@@ -1,0 +1,7 @@
+#!/bin/bash
+
+if [ "$1" = "full" ] ; then
+    type-something "$(date +'%F %H:%M:%S')"  
+else
+    type-something "$(date +%F)"
+fi

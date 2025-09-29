@@ -1,0 +1,65 @@
+#!/bin/bash
+
+# If called with no args, just find an open emacs window and bring it
+# to the current desktop.
+# If called with a file, try to open the file with emacsclient which
+# will reuse an open emacs window if emacsserver is running.  Then
+# it will bring that window to the current desktop.
+
+
+shopt -s execfail
+
+COMMAND=""
+
+EMACS_WIN_TITLE="emacs -"
+
+if [ -f ~/.emacs.d/.emacs ] && [ ! -h ~/.emacs ] ; then
+    echo "Just so you know, your ~/.emacs file is not a symlink to"
+    echo "the master copy in ~/.emacs.d/.emacs."
+    echo "They may be out of sync..."
+fi
+
+EMACSCLIENT_FLAGS="-n"
+
+if [ "$1" = "wait" ] ; then
+    shift
+    EMACSCLIENT_FLAGS=""
+fi
+
+if [ $(uname) = "Darwin" ] ; then
+    #EMACS_APP=${HOME}/Applications/Emacs.app
+    EMACS_APP=Emacs
+    if [ "$#" = "0" ] ; then
+        # just focus emacs window
+        open -a ${EMACS_APP}
+    elif emacsclient --eval t > /dev/null 2>&1 ; then
+        # echo "emacsclient responsive, using emacs server to open $@"
+        # focus window
+        #open -a ${EMACS_APP}
+        emacsclient $EMACSCLIENT_FLAGS "$@"
+    else
+	echo "emacsclient no responsive. Try running server-start"
+        open -a ${EMACS_APP} "$@"
+    fi
+elif [ $(uname) = "Linux" ] ; then
+    # show emacs first so we see any prompts
+
+    if which wmctrl > /dev/null 2>&1 ; then
+        if ! wmctrl -R "$EMACS_WIN_TITLE" ; then
+            echo "Couldn't find window with title $EMACS_WIN_TITLE to show. "
+            echo "Starting new emacs instance"
+        fi
+    fi
+
+    if emacsclient --eval t > /dev/null 2>&1 ; then
+        emacsclient $EMACSCLIENT_FLAGS "$@" > /dev/null 2>&1
+    else
+        # if connected via ssh, use always emacs-nox
+        #if [ "$SSH_CONNECTION" ] || [ -z "$DISPLAY" ] ; then
+        if [ -z "$DISPLAY" ] ; then
+            emacs -nw "$@"
+        else
+            emacs "$@" &
+        fi
+    fi
+fi

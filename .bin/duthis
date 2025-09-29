@@ -1,0 +1,4 @@
+#!/bin/sh
+## show disk space usage for directories in $1
+du -h --max-depth=1 "$@"
+

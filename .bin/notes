@@ -1,0 +1,20 @@
+#!/bin/bash
+
+NOTES_DIR="${JJR_ENV}/notes"
+COMMAND="runemacs"
+
+# If we are at work, then open work notes.
+# Anywhere else, open normal notes.
+if [ ${HOSTNAME} = "brukner" ] ; then
+    FILE="${NOTES_DIR}/work-notes.txt"
+else
+    FILE="${NOTES_DIR}/notes.txt"
+fi
+
+if [ -n "$DISPLAY" ] ; then
+    COMMAND="runemacs"
+else 
+    COMMAND="emacs -nw"
+fi
+
+$COMMAND $FILE

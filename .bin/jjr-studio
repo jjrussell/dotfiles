@@ -1,0 +1,7 @@
+#!/bin/sh
+
+qjackctl &
+qsynth &
+gnome-volume-control &
+sleep 5
+rosegarden &

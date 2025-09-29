@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Put this after a long running command to pop up a dialog to let you know it's done.
+
+# Arguments are displayed in the notification dialog
+
+if echo $DISPLAY | grep "localhost" > /dev/null 2>&1 ; then
+    echo "Skipping dialog because we're on a remote system"
+    exit
+fi
+
+
+MESSAGE="The thing you asked me to do is done: $*"
+
+
+if [ $(uname) = "Darwin" ] ; then
+    /usr/bin/osascript <<-EOF
+
+    tell application "System Events"
+        activate
+        display dialog "$MESSAGE"
+    end tell
+
+EOF
+    #     osascript <<ENDSCRIPT
+    # tell  application "iTerm" to activate
+    # ENDSCRIPT
+elif [ $(uname) = "Linux" ] ; then
+    zenity --title "Finished" --info --text "$MESSAGE" > /dev/null 2>&1
+elif [ $(uname) = "Cygwin" ] ; then
+    echo "Left as an exercise for the reader.  Helpful hints may be found at http://store.apple.com and http://ubuntu.com"
+else
+    echo "Unknown platform: $(uname)"
+    exit 1
+fi

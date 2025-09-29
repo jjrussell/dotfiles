@@ -1,0 +1,8 @@
+#!/bin/bash
+
+if [ ! -n "$1" ] ; then
+    echo "Usage: $(basename $0) [FILEPATTERN]"
+    echo "Will check zip file contents for files matching the given pattern."
+else
+    for ZIP in $(\ls *.jar *.zip) ; do unzip -l $ZIP | if grep -i "$1" ; then echo $ZIP ; fi ; done | less
+fi

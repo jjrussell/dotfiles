@@ -1,0 +1,10 @@
+#!/bin/bash
+
+cdda2wav -D /dev/cdrom -B
+
+for CD_TRACK in * 
+do 
+lame -h --vbr-new -V 3 -m j --add-id3v2 $CD_TRACK $CD_TRACK.mp3
+done
+
+echo "CD ripped to MP3 format"

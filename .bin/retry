@@ -1,0 +1,15 @@
+#!/bin/bash
+
+while ! $* ; do
+    echo ""
+    echo "****************"
+    echo "Command didn't work, Retrying '$*' in 3 seconds"
+    echo ""
+    sleep 1
+    echo -n "1..."
+    sleep 1
+    echo -n "2..."
+    sleep 1
+    echo "3!"
+    echo ""
+done

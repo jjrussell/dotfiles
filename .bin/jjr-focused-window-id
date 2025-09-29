@@ -1,0 +1,6 @@
+#!/bin/sh
+
+#returns the xid of the currently focused window
+ID=`xdpyinfo | grep focus | cut -d ' ' -f 4 - | cut -d ',' -f 1`
+xdpyinfo | grep focus | grep Parent &> /dev/null && ID=$((ID-1))
+echo $ID

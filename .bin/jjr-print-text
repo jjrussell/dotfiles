@@ -1,0 +1,4 @@
+#!/bin/sh
+
+
+enscript -B -fTimes-Roman@12 "$@"

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+ARGS=''
+
+# In case we are being called as a nautilus script
+if [ -n "$NAUTILUS_SCRIPT_CURRENT_URI" ] ; then
+    base=`echo $NAUTILUS_SCRIPT_CURRENT_URI | cut -d'/' -f3-`
+    cd $base
+fi
+
+# Quote all the args properly.
+for ARG in "$@" ; do
+    ARGS="$ARGS '$ARG'"
+done
+
+# for some reason aterm doesn't work with -e here. Just use xterm
+xterm -e "jssh dump $ARGS; echo Press enter to exit...;read JUNK"

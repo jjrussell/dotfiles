@@ -1,0 +1,10 @@
+zstyle ':prezto:load' pmodule \
+  'directory' \
+  'utility' \
+  'completion' \
+  'git' \
+  'prompt' \
+  'syntax-highlighting' \
+  'history-substring-search' \
+
+zstyle ':prezto:module:prompt' theme 'paradox'

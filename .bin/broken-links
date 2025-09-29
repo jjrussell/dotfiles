@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if [ "$1" = "-p" ] ; then
+    echo "These are the broken symlinks that I would remove..."
+else
+    echo "Removing..."
+fi
+
+for FILE in $(ls -a) ; do
+    if file "$FILE" | grep -q "broken symbolic" ; then
+        ls "$FILE"
+        if [ "$1" != "-p" ] ; then
+            rm "$FILE"
+        fi
+    fi
+done

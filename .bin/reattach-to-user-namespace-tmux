@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# in order for tmux config to be portable use this to wrap the reattach-to-user-namespace
+# command which is only present and necessary on osx to give the shell access to the
+# native clipboard.
+if [[ "$(uname)" = "Darwin" ]]; then
+  /usr/local/bin/reattach-to-user-namespace $@
+else
+  exec "$@"
+fi

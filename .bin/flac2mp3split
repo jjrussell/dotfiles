@@ -1,0 +1,39 @@
+#!/bin/bash
+
+function print_usage()
+{
+    [ -n "$1" ] && echo "Error: $1"
+
+    echo "Usage: `basename $0` any_flac_file.flac"
+    echo 
+    echo "The flac file will be converted to mp3.  If a file with the same"
+    echo "name as the flac file and the 'cue' extension is found, it will"
+    echo "be passed to mp3splt to split the resulting mp3 file and tag it."
+    echo "This usually the case as people tend to rip an entire album into"
+    echo "a single flac file for audio archiving."
+    echo "The split mp3s will be put into a directory named after the"
+    echo "original flac file."
+}
+
+for SONG in "$@" ; do
+
+    if [ -e "$1" ] ; then
+	SONG_NAME_NO_EXT=${1%%.*}
+	SONG_EXT=${1#*.}
+
+	echo "Converting $1 to '${SONG_NAME_NO_EXT}.mp3'..."
+	gst-launch-0.10 filesrc location="$1" ! flacdec ! lame name=enc mode=0 vbr-quality=4 ! filesink location="${SONG_NAME_NO_EXT}.mp3"
+	
+
+	if [ -e "${SONG_NAME_NO_EXT}.cue" ] ; then
+	    echo "Cue file '${SONG_NAME_NO_EXT}.cue' found. Splitting output " 
+	    echo "mp3 file using mp3splt and cue file..."
+	    mp3splt -f -d "${SONG_NAME_NO_EXT}" -c "${SONG_NAME_NO_EXT}.cue" "${SONG_NAME_NO_EXT}.mp3"
+	else
+	    echo "No corresponding cue file for $1"
+	fi
+    else
+	print_usage "No such file: $1"
+    fi
+    shift
+done

@@ -1,0 +1,270 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'mixlib/cli'
+require 'json'
+
+class Aws
+  include Mixlib::CLI
+
+  banner "Usage: #{File.basename($0)} (options) [ssh|scp|find|as|cssh]"
+
+  option :ssh_key,
+         :short => "-i SSH_KEY",
+         :long =>  "--ssh-key SSH_KEY",
+         :description => "Optional ssh key to use for ssh/scp"
+
+  option :group,
+         :short => "-g",
+         :long =>  "--group",
+         :description => "Treat name pattern as if it were a security group instead of a name/hostname"
+
+  option :force,
+         :short => "-f",
+         :long =>  "--force",
+         :description => "cssh into more than 20 hosts at a time"
+
+  option :region,
+         :short => "-r",
+         :long =>  "--region REGION",
+         :description => "AWS region",
+         :default => 'us-east-1'
+
+  option :user,
+         :short => "-u",
+         :long =>  "--user USER",
+         :description => "ssh user",
+         :default => ENV['USER']
+
+  option :debug,
+         :short => "-d",
+         :long =>  "--debug",
+         :description => "More output"
+
+  option :help,
+         :short => "-h",
+         :long => "--help",
+         :description => "Show this message",
+         :on => :tail,
+         :boolean => true,
+         :show_options => true,
+         :exit => 0
+
+  COMMAND_HANDLERS = {
+    "ssh"  => "ssh_somewhere",
+    "scp"  => "scp_files",
+    "find" => "find_instances",
+    "as"   => "find_autoscaler_group_member",
+    "tiab" => "ssh_to_tiab",
+    "jenkins" => "ssh_to_jenkins_node",
+    "cssh" => "ssh_to_cluster"
+  }
+
+
+
+  def debug(message)
+    puts message if config[:debug]
+  end
+
+  def run(argv = ARGV)
+    @argv = parse_options(argv)
+
+    @command = @argv[0] || "ssh"
+
+    unless COMMAND_HANDLERS[@command]
+      debug "Unknown command '#{@command}'. Assuming ssh"
+      @command = "ssh"
+    else
+      @argv.shift #discard command arg if we had one
+    end
+
+    send COMMAND_HANDLERS[@command]
+  end
+
+  def aws_cli
+    "aws --region #{config[:region]}"
+  end
+
+  def ssh_somewhere
+    query = @argv
+    # randomly pick one of the hosts returned to ssh in.
+    instances = find_instances(query, false)
+    if instances.size > 1
+      puts "The query '#{query}' returned #{instances.size} hosts. Randomly picking one."
+      puts "Use cssh command to ssh into all of them "
+    end
+
+    ssh_to_public_hostname(instances.sample)
+  end
+
+  def ssh_to_public_hostname(hostname)
+    raise "Empty hostname" unless hostname
+    command = "ssh #{ssh_key} #{hostname}"
+    debug "sshing with command #{command}"
+    exec "ssh #{ssh_key} #{config[:user]}@#{hostname}"
+  end
+
+  def ssh_to_tiab
+    config[:region] = "us-west-2"
+    # tiab aws names replace dashes with underscores
+    @argv.map!{|arg| arg.gsub(/-/,'_')}
+    ssh_somewhere
+  end
+
+  def set_jenkins_config
+    config[:region] = 'us-west-1'
+    config[:ssh_key] = '/Users/jjrussell/eng/src/deployment-keys/ec2_keys/deployapi-keypair.pem'
+    config[:user] = 'ubuntu'
+  end
+
+  def ssh_to_jenkins_node
+    set_jenkins_config
+    ssh_somewhere
+  end
+
+
+  def find_autoscaler_group_member(name = @argv[0], selector = @argv[1])
+    if name.nil? || name.empty?
+      print_all_as_groups
+    else
+      # looking for instance of a particular group
+      group = as_group_instances(name)
+      if group.nil?
+        puts "********\n* No such group found - '#{name}'\n********\n\n"
+        find_autoscaler_group_member("")
+      elsif not group.any?
+        puts "********\n* No InService instances found in auto scale group #{name}\n********\n\n"
+        puts JSON.pretty_generate(group)
+        exit 1
+      else
+
+        if selector == "all"
+          puts JSON.pretty_generate(JSON.parse(`#{aws_cli} autoscaling describe-auto-scaling-groups --auto-scaling-group #{name}`)["AutoScalingGroups"].first)
+        #puts JSON.pretty_generate(group)
+        elsif selector == "random"  || ! selector # default if none is specified
+          # get a random instance id
+          ssh_to_public_hostname(find_instances(group.sample, false)[0])
+        elsif selector == "recent"
+          # get the most recent instance id
+          ssh_to_public_hostname(find_instances(group.last, false)[0])
+        elsif selector == "cssh" or selector == "csshx"
+          # get all instances in an autoscaller and csshx into all of them
+          ssh_to_cluster(group)
+        else
+          puts "Unknown selector. Valid selectors are 'all', 'random','recent'. Default is 'random'"
+        end
+      end
+    end
+  end
+
+  def as_group_instances(name)
+    group = JSON.parse(`#{aws_cli} autoscaling describe-auto-scaling-groups --auto-scaling-group #{name}`)["AutoScalingGroups"].first
+    if group
+      group["Instances"].find_all{ |i| i["LifecycleState"] == "InService" }.map{ |i| i["InstanceId"] }
+    else
+      nil
+    end
+  end
+
+  def print_all_as_groups
+    # just print out all groups
+    puts "Fetching all auto scale groups"
+    puts "------------------------------"
+    puts ""
+    groups = JSON.parse(`#{aws_cli} autoscaling describe-auto-scaling-groups`)["AutoScalingGroups"]
+    groups.sort! {|x,y| x["AutoScalingGroupName"] <=> y["AutoScalingGroupName"]}
+    format = "%-40s %3s %3s %7s %6s %s\n"
+    printf format, "Name", "Min", "Max", "Desired", "Actual", "LaunchConfig"
+    groups.each do |group|
+      printf format, group["AutoScalingGroupName"], group["MinSize"], group["MaxSize"], group["DesiredCapacity"], group["Instances"].size, group["LaunchConfigurationName"]
+    end
+  end
+
+  def ssh_to_cluster(name = @argv.join(" "))
+    debug "csshing into all machines matching query '#{name}'"
+    instances = find_instances(name, false)
+    if instances.any?
+      if instances.size > 20 and not config[:force]
+        puts "There are #{instances.size} hosts found. Are you sure you want to cssh into that many? "
+        puts "Rerun with --force or -f to go ahead"
+        exit 1
+      end
+      command =  "csshX --ssh_args \"#{ssh_key}\" --login #{config[:user]} #{instances.join(' ')}"
+      puts command
+      exec command
+    else
+      puts "No instances found. Can't cssh anywhere."
+    end
+
+  end
+
+  # uses aws ec2 describe-instances and searches the output for hostnames
+  #
+  # if search_string is a string that starts with 'i-' we search for it as an instance id.
+  # if search_string is another string we search for it as an instance with tag Name
+  # otherwise we're expecting a list of arguments to pass to ec2-describe-instances
+  #
+  # Returns an array of hostnames found. If print_output prints output and
+  # puts first hostname into the OS paste buffer (on OS X)
+  def find_instances(query = @argv.join(' '), print_output = true)
+    query = query.join(' ') if query.is_a? Array
+
+    if query.start_with?('i-') # amazon instance ids
+      find_args = ["--filter", "Name=instance-id,Values=\"#{query.split.join(',')}\""]
+    elsif query.start_with?("ip-") or query.start_with?("domU-") # aws private dns
+      find_args = ["--filter", "Name=private-dns-name,Values=\"#{query}*\""] # trailing * to match .ec2.internal
+    elsif query.start_with?("10.") # aws private ip
+      find_args = ["--filter", "Name=private-ip-address,Values=\"#{query}\""]
+    elsif query =~ /^[0-9]+\./ # aws public ip
+      find_args = ["--filter", "Name=ip-address,Values=\"#{query}\""]
+    elsif query.start_with?("ec2-") # aws private ip
+      find_args = ["--filter", "Name=dns-name,Values=\"#{query}\""]
+    elsif query.start_with?("--filters")
+      find_args = query
+    elsif config[:group]
+      find_args = ["--filter", "Name=group-name,Values=\"#{query}\""]
+    else
+      # all else fails, check for names with that substring
+      find_args = ["--filter", "Name=tag:Name,Values=\"*#{query}*\""]
+    end
+
+    find_command = "#{aws_cli} ec2 describe-instances #{find_args.join(' ')}"
+    debug "finding with command '#{find_command}'"
+    result = JSON.parse(`#{find_command}`)
+    # reservations can have several instances each
+    instances = result["Reservations"].map do |r|
+      r["Instances"]
+    end.flatten.select do |instance|
+      instance["State"]["Name"] == "running"
+    end.map do |instance|
+      instance
+    end
+
+
+    # put the first hostname we found in the mac clipboard
+    if print_output
+      puts "\nFound (#{instances.size}) instances:"
+      instances.each do |instance|
+        puts "#{instance["PublicDnsName"]} - #{instance["InstanceId"]} - #{instance["Tags"] ? instance["Tags"].select{|t| t["Key"] =~ /name/i } : nil }"
+      end
+      if instances.any?
+        puts "\n\nSingle line output for cssh into #{instances.size} hosts:"
+        puts instances.map{|instance| "#{instance["PublicDnsName"]}"}.join(" ")
+
+        first = instances.first
+        IO.popen("pbcopy", "r+" ){|p| p.print first["PublicDnsName"] }
+        puts "\n\nPasted the first hostname '#{first["PublicDnsName"]}' - (#{first["InstanceId"]}) into the clipboard.\n\n"
+
+      end
+    end
+
+    instances.map{|instance| "#{instance["PublicDnsName"]}"}
+  end
+
+  def ssh_key
+    config[:ssh_key] ? "-i #{config[:ssh_key]}" : ""
+  end
+end
+
+cli = Aws.new
+cli.run

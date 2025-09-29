@@ -1,0 +1,3 @@
+#!/bin/bash
+
+/home/jorussel/Dropbox/jjr-environment/bin/jjr-backup home > /tmp/home-backup-cron.log 2>&1

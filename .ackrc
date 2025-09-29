@@ -1,0 +1,10 @@
+--type-set=json=.json
+--type-set=procfile=Procfile
+--type-add=ruby=.haml,.rake
+--type-add=html=.html.erb,.html.haml,.ejs
+--type-add=js=.js.erb,.jst,.coffee
+--type-add=css=.sass,.less,.scss
+--ignore-dir=log
+--ignore-dir=logs
+--ignore-dir=vendor
+--ignore-dir=data

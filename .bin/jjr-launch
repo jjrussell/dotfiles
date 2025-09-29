@@ -1,0 +1,160 @@
+#!/bin/bash
+
+#############################################################
+##
+## Constants
+##
+############################################################# 
+
+# Do we want only one instance of this app? Default: no
+SINGLE=""
+# If set, use app class instead of title
+WM_CLASS=""
+# If the app is running, should we go to it, or bring it to us? Default: stay
+WMCTRL_ARGS="-R"
+# The whole command line to be run
+COMMAND=""
+# just the program from the command line so we can search ps for it
+PROGRAM="" 
+# title of the window to look for with wmctrl
+TITLE=""
+
+#############################################################
+##
+## Functions
+##
+############################################################# 
+
+jjr-dialog ()
+{
+    if [ -e $(which zenity &> /dev/null) ] && [ -n "$DISPLAY" ]  ; then
+	zenity --title "$1" --info --text "$2" > /dev/null 2>&1
+    elif [ -e $(which xmessage &> /dev/null) ] && [ -n "$DISPLAY" ] ; then
+	xmessage -bg black -fg green -bd white -center \
+	    -buttons OK -default OK "$2" &> /dev/null
+    else
+	echo -e "$1: $2"
+    fi
+}
+
+# pass in the window title and this echos the id
+# weird hack to grep through wmctrl list for the WM_CLASS we're 
+# looking for and get the id of that window.  wmctrl doesn't 
+# have a way of directly looking for windows of a specific class
+#
+# If second arg is provded, find a window that does NOT have that title
+get-window-id (){
+    wmctrl -lx | grep "${1}" | head -n 1 | perl -ane 'print $F[0];'
+}
+get-window-id-with-title ()
+{
+    wmctrl -lx | grep "${1}" | grep "${2}" | head -n 1 | perl -ane 'print $F[0];'
+}
+
+get-window-id-without-title ()
+{
+    wmctrl -lx | grep "${1}" | grep -v "${2}" | head -n 1 | perl -ane 'print $F[0];'
+}
+
+#############################################################
+##
+## Parse arguments
+##
+############################################################# 
+USAGE="Usage: $(basename $0) [-s] [-g] command window_title secondard_window_title
+    -s: Check if the app is already open before launching
+    -g: If the app is running go to its desktop.
+        If not supplied, bring the app to the current desktop
+    -c: If set check window_title against WM_CLASS instead of title.
+    command: command to be run. 
+             Use double quotes for commands with args
+    window_title: Title of the window to look for 
+             if this command is running
+    secondard_window_title: An optional backup if window_title can't be found
+    If this arg starts with a - and -c was provided then this is taken to be
+    the title of a window of class window_title that should be found last, 
+    after other windows if the same class are tried. This is to find the 
+    chat window for pidgin which has no class distinct from the buddy list
+    and no consistent title of its own."
+
+while getopts ":sgc" opt ; do
+    case $opt in
+	s ) SINGLE=1 ;;
+	g ) WMCTRL_ARGS="-a" ;;
+	c ) WM_CLASS=1 ;;
+	? ) jjr-dialog "Usage" "$USAGE"
+	    exit 1;;
+    esac
+done
+shift $(($OPTIND - 1))
+
+if [ $# != 1 ] && [ $# != 2 ] && [ $# != 3 ] ; then
+    jjr-dialog "jjr-launch Usage error" "Wrong number of arguments $USAGE"
+    exit 1;
+fi
+
+
+
+#############################################################
+##
+## Main execution
+##
+############################################################# 
+COMMAND="$1"
+PROGRAM=$(echo $COMMAND | egrep -o "^[^ ]+")
+TITLE=${2:-$COMMAND}
+BACKUP_TITLE=${3}
+
+if [ -n "$WM_CLASS" ] ; then
+    if [ "${BACKUP_TITLE:0:1}" = "-" ] ; then # does backup_title start with a dash?
+
+	CLASS=$TITLE
+	EXCLUDE=${BACKUP_TITLE:1} # everything after the leading dash
+	echo "Trying windows of class ${CLASS} without title of ${EXCLUDE} first."
+	TITLE=$(get-window-id-without-title ${CLASS} ${EXCLUDE}) 
+	BACKUP_TITLE=$(get-window-id-with-title ${CLASS} ${EXCLUDE})
+    else
+	echo "here and title is $TITLE"
+	TITLE=$(get-window-id $TITLE)
+	echo "now title is $TITLE"
+	if [ -n "$BACKUP_TITLE" ] ; then
+	    BACKUP_TITLE=$(get-window-id $BACKUP_TITLE)
+	fi
+    fi
+    echo "Will look first for '$TITLE' and then for '$BACKUP_TITLE'"
+    # now that we have the ids, do searches for windows by ID
+    WMCTRL_ARGS="-i $WMCTRL_ARGS"
+fi
+
+
+if [ -n "$SINGLE" ] ; then
+    if [ ! which wmctrl &> /dev/null ] ; then
+	jjr-dialog "Oops" "Can't find wmctrl. Go get it"
+	exit 1
+    fi
+    echo -e "trying wmctrl $WMCTRL_ARGS $TITLE"
+    if wmctrl $WMCTRL_ARGS "$TITLE" ; then
+	echo "Found window for title: $TITLE"
+        # see if wmctrl can find something matching the title
+	exit 0
+    elif [ -n "$BACKUP_TITLE" ] && wmctrl $WMCTRL_ARGS "$BACKUP_TITLE" ] ; then
+	echo "Found window for backup title: $BACKUP_TITLE"
+	exit 0
+    fi
+    echo "Couldn't find title '$TITLE' or backup title '$BACKUP_TITLE'. Launching process with command '$COMMAND'"
+fi
+
+# if we get here, try to exec the command and
+# display any output if exec fails
+shopt -s execfail
+#OUTPUT=$(exec $COMMAND 2>&1)
+
+echo "launching command $COMMAND"
+echo "which command $(which $COMMAND)"
+#exec sh -c $COMMAND
+exec sh -c $COMMAND
+#exec "$COMMAND"
+
+# we should only be here if exec fails
+jjr-dialog "Error" "Error running $COMMAND Exit code: $? "
+exit 1

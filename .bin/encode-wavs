@@ -1,0 +1,6 @@
+#!/bin/sh
+
+for WAV in "$@" ; do
+    lame --vbr-new "$WAV"
+    rename wav.mp3 mp3 "${WAV}.mp3"
+done

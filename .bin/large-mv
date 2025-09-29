@@ -1,0 +1,24 @@
+#!/bin/sh
+
+if [ -z "$1" ] ; then
+    echo "Usage: `basename $0` destination"
+    echo "  Pipe large file lists in to move them to destination."
+    exit 1;
+fi
+
+if [ ! -d "$1" ] ; then
+    echo "Destination must be a directory"
+    exit 1;
+elif [ ! -x "$1" ]  ; then
+    echo "You do not have execute permission to the destination"
+    exit 1;
+elif [ ! -w "$1" ] ; then
+    echo "You do not have permission to write to the destination"
+    exit 1;
+fi
+
+    
+    
+while read file; do
+    mv "$file" "$1"
+done

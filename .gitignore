@@ -1,0 +1,26 @@
+.vim
+# https://github.com/jjrussell/emacs.d
+.emacs.d
+.bash_history
+.bash_local
+.zsh_history
+.zhistory
+.DS_Store
+.anyconnect
+.aws
+.chef
+.fonts
+.gitconfig
+.gitignore_global
+# no peeking
+.secrets 
+.ssh
+# tmux session store
+.resurrect
+# installed by jjr-setup
+.zprezto
+.z
+.zlogin
+.zlogout
+.tmux
+.config/github-copilot

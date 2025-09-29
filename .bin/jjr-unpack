@@ -1,0 +1,98 @@
+#!/bin/bash
+
+# examines the type of the unput file and calls tar or unzip appropriately
+function untar_file()
+{
+
+# returns gzip, bzip2 or Zip
+#    TYPE=$(file "$1" | cut -d " " -f 2)
+    TYPE=$(file "$1" | awk '{print $2}')
+
+#if it says POSIX its probably an unzipped tar
+    if [ $TYPE = "POSIX" ]; then
+        TYPE=$(file $1 | awk '{print $3}')
+    fi
+
+
+
+    NOEXT=${1%.*} # match the last . and whatever is after it
+
+    TAR_FLAG="x"
+    UNZIP_COMMAND="$UNZIP -d $NOEXT \"$1\""
+
+    if [ "$2" = "1" ] ; then
+        TAR_FLAG="t"
+        UNZIP_COMMAND="$UNZIP -l \"$1\""
+    fi
+    
+    case "$TYPE" in
+	gzip)
+	    $TAR -${TAR_FLAG}zf "$1"
+	    ;;
+	bzip2)
+	    $TAR -${TAR_FLAG}jf "$1"
+	    ;;
+	tar)
+	    $TAR -${TAR_FLAG}f "$1"
+	    ;;
+	Zip)
+#	    echo "Running $UNZIP_COMMAND"
+	    $UNZIP_COMMAND
+	    ;;
+	*)
+	    echo "$1 is not a recognized archive format." 
+	    ;;
+    esac
+
+# if [ $TYPE == "gzip" ]; then
+#         $TAR -${TAR_FLAG}zf "$1"
+#     elif [ $TYPE == "bzip2" ]; then
+#         $TAR -${TAR_FLAG}jf "$1"
+#     elif [ $TYPE == "tar" ]; then
+#         $TAR -${TAR_FLAG}f "$1"
+#     elif [ $TYPE == "Zip" ]; then
+#         $UNZIP_COMMAND
+#     else
+#         echo "$1 is not a recognized archive format." 
+#     fi
+}
+
+function print_usage()
+# untars all archives in the PWD
+{
+    echo "Usage: $0 <compressed_file|directory>"
+    echo "\tOptions: -t: display archive contents"
+    echo 
+    exit 1
+}
+
+TEST=0
+TAR=$(which tar)
+UNZIP=$(which unzip)
+
+if [ "$1" = "-t" ] ; then
+    export TEST=1
+    shift
+fi
+
+
+[ ! "$#" = "1" ] && echo "ERROR: Wrong number of arguments" && print_usage
+
+if [ ! -e "$1" ]; then
+    echo "$1 does not exist"
+    print_usage
+fi
+
+if [ -f "$1" ] ; then
+    untar_file "$1" $TEST
+elif [ -d "$1" ] ; then
+    for FILE in "$1"/* ; do
+        untar_file "$FILE" $TEST
+    done
+else
+    echo "What the hell is that?"
+    print_usage
+fi
+
+
+

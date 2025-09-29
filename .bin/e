@@ -1,0 +1,17 @@
+#!/bin/sh
+
+#Set UID properly when emacs starts so that we can turn the mode-line
+#red if we are root.  Just as a warning to be careful.
+export UID 
+#if there aren't any files args to open, open CWD in dired
+FILES=""
+if [ $# = 0 ] ; then
+    FILES="."
+else
+    FILES="$@"
+fi
+
+# Instead of having a separate init file for em (small emacs) our regular
+# .emacs file looks for JJR_EMACS_MINIMAL in the environment.  If it is
+# there, then it doesn't load some of the heavy packages.
+JJR_EMACS_MINIMAL="true" exec emacs -nw $FILES

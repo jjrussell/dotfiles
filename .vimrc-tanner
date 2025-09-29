@@ -1,0 +1,167 @@
+set nocompatible
+
+" Vundle requires this
+filetype off
+
+
+"""""""""""""""""""""""""""""""""""""
+" Vundle
+"""""""""""""""""""""""""""""""""""""
+
+" Setup Vundle
+set rtp+=~/.vim/bundle/vundle/
+call vundle#rc()
+
+" Let Vundle manage Vundle
+Bundle 'gmarik/vundle'
+
+" Bundle these plugins
+Bundle 'tsaleh/vim-align'
+Bundle 'tpope/vim-endwise'
+Bundle 'tpope/vim-rails'
+Bundle 'tpope/vim-surround'
+Bundle 'git://git.wincent.com/command-t.git'
+Bundle 'scrooloose/nerdtree'
+Bundle 'kchmck/vim-coffee-script'
+Bundle 'skwp/vim-rspec'
+Bundle "myusuf3/numbers.vim"
+Bundle 'tpope/vim-fugitive'
+Bundle 'mileszs/ack.vim'
+Bundle 'kien/ctrlp.vim'
+Bundle 'scrooloose/syntastic'
+Bundle 'pangloss/vim-javascript'
+
+""""""""""""""""""""""""""""""""""""""
+" Color Scheme
+""""""""""""""""""""""""""""""""""""""
+
+" Install Solarized (the last color scheme you'll ever need)
+Bundle 'altercation/vim-colors-solarized'
+
+" Also required by vundle
+filetype plugin indent on
+
+syntax enable
+set background=dark
+"tanner's colors
+"colorscheme base16-tomorrow
+"let g:solarized_termcolors=256
+"let g:solarized_visibility="normal"
+colorscheme solarized
+
+"highlight the current cursor line
+set cursorline
+
+" ssshhhhhhhhh
+set visualbell 
+set mouse-=a
+"Add Git status to statusline
+
+set statusline=%{fugitive#statusline()}
+set showmatch
+set incsearch
+set hlsearch
+set autoindent
+"Default leader sucks, comma makes a lot of things cleaner
+let mapleader = ","
+"Maps to make splits cleaner to move around
+map <C-J> <C-W>j<C-W>_
+map <C-K> <C-W>k<C-W>_
+map <C-L> <C-W>l<C-W>_
+map <C-H> <C-W>h<C-W>_
+map <C-K> <C-W>k<C-W>_
+
+set splitbelow
+set splitright
+
+"Open file under cursor in a new tab
+nnoremap <leader>gt <C-W>gF
+
+nmap <space> zz
+
+"Control+D to open NERDTree
+nnoremap <leader>d :NERDTreeToggle<CR>
+nnoremap <leader><C-space> :let @/=''<cr>
+"leader space to remove search highlighting but not clear the search
+nnoremap <cr> :noh<cr><cr>
+nnoremap j gj
+nnoremap k gk
+"In insert mode hit jj quickly to be the same as escape
+inoremap jj <ESC>
+"Default to spaces not tabs, 2 spaces = 1 tab
+set expandtab
+set ts=2
+set sw=2
+
+cnoremap <C-A> <Home>
+cnoremap <C-E> <End>
+
+"Find aliases
+nnoremap <leader>ff :Ggrep --no-index -I -F <cword><cr>
+"Force grep commands to open in quickfix window
+autocmd QuickFixCmdPost *grep* cwindow
+"Set quickfix to open or reuse an existing tab when opening results
+set switchbuf+=usetab,newtab
+
+" Disable the GUI menu bar (if running)
+if has("gui_running")
+  set guioptions-=T
+endif 
+
+"Git Commands
+nnoremap <leader>gs :Gstatus<cr>
+" add -v so we get git diffs in our commit window
+nnoremap <leader>gc :Gcommit -v<cr>
+nnoremap <leader>gd :Gdiff<cr>
+nnoremap <leader>gr :Gread<cr>
+nnoremap <leader>gp :Git push<cr>
+
+"Rails.vim remaps
+"Open the test in a split
+nnoremap <leader>rs :AV<cr> 
+"Open the test in a tab
+nnoremap <leader>rt :AT<cr> 
+
+"Highlight Git conflict markers
+match ErrorMsg '^\(<\|=\|>\)\{7\}\([^=].\+\)\?$'
+
+let g:ctrlp_switch_buffer='ETVH'
+
+"Map CommandT for file browsing
+nnoremap <leader>t :CtrlP<CR>
+
+"Map leader-b for buffer browsing
+nnoremap <leader>b :CtrlPBuffer<CR>
+
+
+function! TodoSplit()
+  exec "bo vert 90 new ~/.vimtodo!"
+endfunction
+
+map <C-T> :call TodoSplit()<cr>
+
+let delimitMate_balance_matchpairs = 1
+
+nnoremap <F3> :NumbersToggle<CR>
+
+" Use java completion in java files...
+autocmd Filetype java setlocal omnifunc=javacomplete#Complete
+
+highlight clear SignColumn
+
+set wildmenu
+set wildmode=list:longest,full
+
+"""""""""""""""""""""""""""""""""""""""
+" Swap file containment
+"""""""""""""""""""""""""""""""""""""""
+
+" Save your swp files to a less annoying place than the current directory.
+" If you have .vim-swap in the current directory, it'll use that.
+" Otherwise it saves it to ~/.vim/swap, ~/tmp or .
+if isdirectory($HOME . '/.vim/swap') == 0
+  :silent !mkdir -p ~/.vim/swap >/dev/null 2>&1
+endif
+set directory=./.vim-swap//
+set directory+=~/.vim/swap//
+set directory+=~/tmp//

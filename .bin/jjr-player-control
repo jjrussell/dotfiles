@@ -1,0 +1,143 @@
+#! /bin/bash
+
+# Script to control the running music player
+# Works with xmms or rhythmbox
+# Options:
+#	--next: Plays the next song
+#	--previous: Plays the previous song
+#	--stop: Stops playing
+#	--play: Toggles between play and pause mode
+#	--volume-up: increases PCM volume
+#	--volume-down: decreases PCM volume
+#	--mute: mute PCM volume
+
+jjr-dialog ()
+{
+    if [ -e `which zenity > /dev/null 2>&1` ] && [ -n "$DISPLAY" ]  ; then
+	zenity --title "$1" --info --text "$2" > /dev/null 2>&1
+    elif [ -e `which xmessage > /dev/null 2>&1` ] && [ -n "$DISPLAY" ] ; then
+	xmessage -bg black -fg green -bd white -center \
+	    -buttons OK -default OK "$2" > /dev/null 2>&1
+    else
+	echo "$1: $2"
+    fi
+}
+
+FONT="fixed"
+OSD_COMMAND="osd_cat --font=$FONT --pos=bottom --align=left --color=yellow --shadow=2 --shadowcolour=black --delay=1 --age=0"
+
+osd_display (){
+    if which gnome-osd-client 2>&1 > /dev/null ; then
+	gnome-osd-client -f "<message id='$PROGRAM_NAME' osd_fake_translucent_bg='off' osd_vposition='bottom' animations='off' avoid_panels='on' hide_timeout='3000' osd_halignment='left'>$1</message>" &
+    elif which osd_cat ; then
+	echo "$1" | "$OSD_COMMAND" &
+    else
+	echo "No osd command found"
+    fi
+}
+
+show_volume (){
+
+    volume_percentage=$(amixer sget Master | egrep -o [0-9]+% | head -n 1)
+    echo "setting volume to $volume_percentage"
+    if which gnome-osd-client 2>&1 > /dev/null ; then
+	osd_display "Volume: $volume_percentage"
+    elif which osd_cat ; then
+	DISPLAY_COMMAND="$OSD_COMMAND --barmode=percentage --percentage=$volume_percentage --text=Volume:"
+    else
+	echo "No osd command found. Volume is $volume_percentage"
+    fi
+
+}
+
+PROGRAM_NAME=$(basename $0)
+# If nothing is running the script will start the default
+# player entered here.
+#DEFAULT="banshee"
+DEFAULT="rhythmbox"
+#FONT="-adobe-helvetica-bold-*-normal-*-20-*-*-*-*-*-*-*"
+
+# newer versions of rb have a separate command for sending dbus commands
+if which rhythmbox-client > /dev/null 2>&1 ; then
+    RHYTHMBOX_CONTROL="rhythmbox-client"
+else
+    RHYTHMBOX_CONTROL="rhythmbox"
+fi
+
+case $1 in
+    
+    --next)
+	XMMS_COMMAND="xmms -f"
+	RHYTHMBOX_COMMAND="$RHYTHMBOX_CONTROL --next"
+	QUODLIBET_COMMAND="quodlibet --next"
+	TOTEM_COMMAND="totem --next"
+	BANSHEE_COMMAND="bashee --next"
+	;;
+    --previous)
+	XMMS_COMMAND="xmms -r"
+	RHYTHMBOX_COMMAND="$RHYTHMBOX_CONTROL --previous"
+	QUODLIBET_COMMAND="quodlibet --previous"
+	TOTEM_COMMAND="totem --previous"
+	BANSHEE_COMMAND="bashee --restart-or-previous"
+	;;
+    --stop)
+	XMMS_COMMAND="xmms -s"
+	RHYTHMBOX_COMMAND="$RHYTHMBOX_CONTROL --pause"
+	QUODLIBET_COMMAND="quodlibet --pause"
+	TOTEM_COMMAND="totem --pause"
+	BANSHEE_COMMAND="bashee --pause"
+	;;
+    --play-pause)
+	XMMS_COMMAND="xmms -t"
+	RHYTHMBOX_COMMAND="$RHYTHMBOX_CONTROL --play-pause"
+	QUODLIBET_COMMAND="quodlibet --play-pause"
+	TOTEM_COMMAND="totem --play-pause"
+	BANSHEE_COMMAND="banshee --toggle-playing"
+	;;
+    --volume-up)
+	amixer sset Master unmute
+	amixer set Master playback 8%+
+	SHOW_VOLUME="yes"
+	;;
+    --volume-down)
+	amixer set Master unmute
+	amixer set Master playback 8%-
+	SHOW_VOLUME="yes"
+	;;
+    --mute)
+	COMMAND="amixer set Master mute"
+	osd_display "Mute"
+	;;
+    --show)
+	BANSHEE_COMMAND="banshee --show"
+	RHYTHMBOX_COMMAND="jjr-launch -c -s -g rhythmbox rhythmbox.Rhythmbox"
+	;;
+    *)
+	echo "Valid Options: --next,--previous,--stop,--play-pause,--volume-up,--volume-down,--mute"
+	exit 1;;
+esac
+
+if [ -n "$SHOW_VOLUME" ] ; then
+    show_volume $val
+else
+    if [ -z "$COMMAND" ] ; then
+	COMMAND="$DEFAULT"
+	if ps -C "totem" > /dev/null 2>&1 ; then
+	    COMMAND=$TOTEM_COMMAND
+	elif ps -eo args | grep -v grep | grep -q "quodlibet" ; then
+	    # can't use ps -C because quodlibet shows up as a python command
+	    COMMAND=$QUODLIBET_COMMAND
+	elif ps -C "banshee-1" > /dev/null 2>&1 ; then
+	    COMMAND=$BANSHEE_COMMAND
+	elif ps -C "rhythmbox" > /dev/null 2>&1 ; then
+	    COMMAND=$RHYTHMBOX_COMMAND
+	fi
+    fi
+    echo "running command $COMMAND"
+    $COMMAND
+    
+    RESULT=$?
+    if [ $RESULT != 0 ] ; then
+	jjr-dialog "Error" "Running command '$COMMAND' failed with error code $RESULT"
+    fi
+fi

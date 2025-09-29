@@ -1,0 +1,75 @@
+#!/bin/bash
+
+LOG_FILE=/tmp/$USER-startup.log
+
+
+function jjr-dialog ()
+{
+    if [ -e $(which zenity &> /dev/null) ] && [ -n "$DISPLAY" ]  ; then
+	zenity --title "$1" --info --text "$2" > /dev/null 2>&1
+    elif [ -e $(which xmessage &> /dev/null) ] && [ -n "$DISPLAY" ] ; then
+	xmessage -bg black -fg green -bd white -center \
+	    -buttons OK -default OK "$2" &> /dev/null
+    else
+	echo "$1: $2"
+    fi
+}
+
+function log()
+{
+    echo $*
+    echo $* >> $LOG_FILE
+}
+
+log "Running startup in $PWD $(date)" > $LOG_FILE
+
+# running auto-disper will detect what display config is present
+# and switch to that profile.  It will output what the profile is
+# so that we can set other stuff like keyboard and mouse buttons
+if [ -n "$DISPLAY" ] ; then
+    log "--- Detecting display profile"
+    DISPLAY_PROFILE=$(auto-disper --change)
+    log "--- Done detecting"
+    if [ $? -ne 0 ] ; then
+	jjr-dialog "There was an error changing the display profile:\n $DISPLAY_PROFILE"
+    fi
+
+    if echo $DISPLAY_PROFILE | grep "laptop" ; then
+	setup-mouse default
+	toggle-alt-super-key.sh alt
+    elif echo $DISPLAY_PROFILE | grep "desk" ; then
+	setup-mouse logitech
+	toggle-alt-super-key.sh default
+    else
+	echo "Unknown display profile '$DISPLAY_PROFILE'. Using macbook settings"
+	echo 
+	setup-mouse default
+	toggle-alt-super-key.sh alt
+    fi
+fi
+
+log "--- Update ip address in /etc/hosts file"
+sudo /home/jorussel/Dropbox/jjr-environment/bin/update-linux-ipaddress >> $LOG_FILE 2>&1
+
+# turns off the red light in the audio jack
+log "--- Shutting off digital audio input"
+amixer set IEC958 off >> $LOG_FILE 2>&1
+
+log "Restarting xbindkeys"
+
+# just kill whatever is there.  It doesn't usually grab all keys if it starts up in the session
+pkill xbindkeys >>  $LOG_FILE 2>&1
+cd
+log "Starting xbindkeys with DISPLAY set to '$DISPLAY'"
+# use -n so output goes to stdout
+xbindkeys -n >>  $LOG_FILE 2>&1 &
+
+if ! ps -e | grep -q xflux ; then
+    log "Starting xflux"
+    xflux -z 01464 >>  $LOG_FILE 2>&1
+fi
+
+xrdb -load ~/.Xdefaults
+
+# part of the startup session
+#granola-gui >>  $LOG_FILE 2>&1

@@ -1,0 +1,237 @@
+#!/bin/bash
+
+# This script is based on the vsound script from the
+# Linux Radio Timeshift HOWTO:
+# http://osl.iu.edu/~tveldhui/radio/
+# vsound related URLs:
+# http://www.mega-nerd.com/erikd/vsound/
+# http://www.xenoclast.org/vsound/
+#
+# Thanks to John McGowan for his suggestion regarding the potential locations of real streams.
+#
+# Initialise values
+duration=0
+oggbits=0
+oggquality=0
+oggq=0
+mp3bits=0
+mp3vbrqual=0
+delete=0
+version="0.31"
+real_url=""
+vsound_parms="-d -a 10"
+oggenc_parms=""
+filename="vsound"
+oggerr=1
+mp3err=1
+
+#Define Functions
+function helpemout
+{
+    echo "realcap - capture realmedia streams to wav or ogg"
+    echo " "
+    echo "Usage:   realcap [OPTIONS] URL/file"
+    echo "Captures output from realplay and optionally encodes to an"
+    echo "ogg vorbis or mp3 file."
+    echo "Most basic operation requires only the stream URL."
+    echo " "
+    echo "Available options:"
+    echo "  -v, --version       display version"
+    echo "  -h, --help          display this help text"
+    echo "  -c, --captime       duration of stream in seconds"
+    echo "                      remember to take initial buffering into account"
+    echo "                        (defaults to 1 hour)"
+    echo "  -o, --oggbits       nominal bitrate (kbps) of ogg vorbis output"
+    echo "                      if omitted ogg encoding will not occur"
+    echo "  -m, --mp3bits       constant bitrate (kbps) of mp3 output"
+    echo "                      Use this or --mp3vbr for mp3 encoding"
+    echo "  -r, --mp3vbr        variable bitrate quality level (0-9) of mp3"
+    echo "                      output. See lame manpage for definition "
+    echo "                      of levels."
+    echo "                      Use this or --mp3bits for mp3 encoding"
+    echo "  -q, --oggquality    ogg vorbis quality between 0 - 10, 10 being the"
+    echo "                      highest. Fractional values allowed"
+    echo "  -a, --trackartist   artist's name for ID3 tag in compressed output"
+    echo "                      file"
+    echo "  -t, --tracktitle    track title for ID3 tag in compressed output"
+    echo "                      file"
+    echo "  -f, --filename      all output files will be given this name."
+    echo "                      do not provide an extension"
+    echo "                        (defaults to vsound.wav/ogg/mp3)"
+    echo "  -d, --delete        deletes wav file after recording if"
+    echo "                      ogg vorbis/mp3 bitrate is specified"
+    echo "                        (otherwise this parameter is ignored)"
+    echo " "
+}
+
+
+# Process command line arguments.
+while [ "$1" != "" ]; do
+    case $1 in
+        -v | --version  )       echo "realcap $version by fuzzbucket@eircom.net"
+            echo "\`realcap --help\` for more information"
+            exit
+            ;;
+        -c | --captime  )
+	    shift
+            duration=$1
+            ;;
+        -o | --oggbits  )
+	    shift
+            oggbits=$1
+            if [ $oggbits -lt 12 ]; then
+                oggbits=12
+            fi
+            if [ $oggbits -lt 16 ]; then
+                oggenc_parms=`echo "$oggenc_parms --resample 8192"`
+            elif [ $oggbits -lt 30 ]; then
+                oggenc_parms=`echo "$oggenc_parms --resample 11025"`
+            elif [ $oggbits -lt 45 ]; then
+                oggenc_parms=`echo "$oggenc_parms --resample 22050"`
+            fi
+            oggenc_parms=`echo "$oggenc_parms -b $oggbits"`
+            ;;
+	-r | --mp3vbr )
+	    shift
+	    mp3vbrqual=$1
+	    if [ $mp3vbrqual -lt 0 ] || [ $mp3vbrqual -gt 9 ] ; then
+		echo "MP3 VBR quality specified is out of range. "
+		echo "Using default setting 4."
+		mp3vbrqual=4
+	    fi
+	    lame_parms=`echo "$lame_parms -m j --vbr-new -V $mp3vbrqual"`
+	    ;;
+        -m | --mp3bits  )       shift
+            mp3bits=$1
+            if [ $mp3bits -lt 16 ]; then
+                mp3bits=16
+            fi
+            lame_parms=`echo "$lame_parms -m j -b $mp3bits"`
+            ;;
+        -f | --filename  )      shift
+            filename=`echo "$1" | tr ' ' '_'`
+            oggenc_parms=`echo "$oggenc_parms -o $filename.ogg"`
+            ;;
+        -q | --oggquality  )    shift
+            oggq=1
+            oggquality=$1
+            oggenc_parms=`echo "$oggenc_parms -q $oggquality"`
+            ;;
+        -t | --tracktitle  )    shift
+            tracktitle=`echo "$1" | tr ' ' '_'`
+            oggenc_parms=`echo "$oggenc_parms -t $tracktitle"`
+            lame_parms=`echo "$lame_parms --tt $tracktitle"`
+            ;;
+        -a | --trackartist  )   shift
+            trackartist=`echo "$1" | tr ' ' '_'`
+            oggenc_parms=`echo "$oggenc_parms -a $trackartist"`
+            lame_parms=`echo "$lame_parms --ta $trackartist"`
+            ;;
+        -d | --delete  )        delete=1
+            ;;
+        -h | --help )           helpemout
+            exit
+            ;;
+        * )                     if [ -z $real_url ]; then
+            real_url=$1
+            else
+            helpemout
+            exit 1
+            fi
+            ;;
+    esac
+    shift
+done
+
+if which zenity > /dev/null 2>&1 ; then
+    if ! zenity --title "Record stream" --question --text "Would you like to record this stream?" > /dev/null 2>&1 ; then
+	realplay $real_url &
+	exit 0
+    fi
+fi
+# Kill any running realplay processes
+#kill `ps | grep realplay | awk '{ print $1 }'` 2>/dev/null
+#filename=`echo $real_url | perl -pe "s/(http:\/\/|\/|&|\?)//g"`
+# Build remaining parameters
+wavfile="$filename.wav"
+
+mp3file=`echo $real_url | perl -pe "s/(http:\/\/|\/|&|\?)//g"`
+mp3file="$mp3file.mp3"
+#vsound_parms="$vsound_parms"
+
+if [ $duration -eq 0 ]; then
+    duration=3600
+fi
+
+if [ -z $real_url ]; then
+    echo "realcap: no input stream specified"
+    echo "Try \`realcap --help\` for more information."
+    exit 2
+fi
+
+if [ $oggq -gt 0 ] && [ $oggbits -gt 0 ] ; then
+    echo "realcap: both bitrate and quality specified for ogg vorbis"
+    echo "Please supply either bitrate or quality for ogg vorbis encoding."
+    exit 3
+fi
+
+# Capture
+echo "Capturing $wavfile from $real_url..."
+#echo "command: vsound $vsound_parms realplay $real_url &"
+echo "Running vsound like this: vsound $vsound_parms realplay $real_url &"
+vsound $vsound_parms realplay $real_url &
+VSOUND_PID=$!
+# sleep $duration
+# kill `ps | grep realplay | awk '{ print $1 }'`
+
+# Wait for vsound to terminate, creating vsound.wav
+wait $VSOUND_PID
+
+# Encode the output to ogg vorbis if specified
+if [ $oggq -gt 0 ]; then
+    echo "Encoding $filename.ogg at quality $oggquality..."
+    oggenc $oggenc_parms $wavfile
+    if [ $? -eq 0 ]; then
+	oggerr=0
+    fi
+elif [ $oggbits -gt 0 ]; then
+    echo "Encoding $filename.ogg at $oggbits kbps..."
+    oggenc $oggenc_parms $wavfile
+    if [ $? -eq 0 ]; then
+	oggerr=0
+    fi
+else
+    oggerr=2
+fi
+
+# Encode the output to mp3 if specified
+if [ $mp3bits -gt 0 ] ; then
+    echo "Encoding $filename.mp3 at $mp3bits kbps..."
+    lame $lame_parms $wavfile $mp3file
+    if [ $? -eq 0 ] ; then
+	mp3err=0
+    fi
+# Encode with mp3 vbr if specified
+elif [ $mp3vbrqual -gt 0 ] ; then
+    echo "Encoding $filename.mp3 with lame vbr at $mp3vbrqual quality..."
+    lame $lame_parms $wavfile $mp3file
+    if [ $? -eq 0 ] ; then
+	mp3err=0
+    fi
+else
+    mp3err=2
+fi
+
+
+if [ $delete -eq 1 ]; then
+    if [ $mp3err -eq 2 ] && [ $oggerr -eq 2 ]; then
+	echo "output not encoded to ogg/mp3. $wavfile was not deleted"
+    elif [ $mp3err -eq 1 ]; then
+	echo "lame reported a problem. $wavfile was not deleted"
+    elif [ $oggerr -eq 1 ]; then
+	echo "oggenc reported a problem. $wavfile was not deleted"
+    else
+	echo "Deleting $wavfile..."
+	rm -f $wavfile
+    fi
+fi

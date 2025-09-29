@@ -1,0 +1,67 @@
+#!/bin/bash
+
+if [ $(uname) = "Darwin" ]  ; then
+    open ${1}
+    exit
+fi
+
+# Two arrays with file browser commands corresponding to the string
+# to search for in their title bars to see if they're already running
+file_browsers=("nautilus --browser --no-desktop" "konqueror --profile management")
+browser_titles=("nautilus.Nautilus" "" " - Konqueror")
+
+
+
+function jjr-dialog ()
+{
+    if [ -e $(which zenity &> /dev/null) ] && [ -n "$DISPLAY" ]  ; then
+	zenity --title "$1" --info --text "$2" > /dev/null 2>&1
+    elif [ -e $(which xmessage &> /dev/null) ] && [ -n "$DISPLAY" ] ; then
+	xmessage -bg black -fg green -bd white -center \
+	    -buttons OK -default OK "$2" &> /dev/null
+    else
+	echo "$1: $2"
+    fi
+}
+
+# In case we are being called as a nautilus script
+if [ -n "$NAUTILUS_SCRIPT_CURRENT_URI" ] ; then
+    base=`echo $NAUTILUS_SCRIPT_CURRENT_URI | cut -d'/' -f3-`
+    if [ -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ]; then
+	dir=$base
+    else 
+	while [ -n "$1" -a ! -d "$base/$1" ]; do shift; done
+	dir="$base/$1"
+    fi
+    shift
+    cd $dir
+fi
+
+DIRECTORY=""
+
+# If we specified an argument and it is a file
+# escape spaces
+if [ -n "$1" ] ; then
+    DIRECTORY="${1}"
+fi
+
+# so we get an error on exec fail instead of replacing the shell process
+shopt -s execfail
+
+let i=0
+while [ $i -lt ${#file_browsers[@]} ] ; do
+    if [ -n "$DIRECTORY" ] ; then
+    # If we want a specific directory, launch a new file browser with
+    # that dir as an argument.
+	jjr-launch "${file_browsers[$i]} \"$DIRECTORY\"" && exit 0;
+    else
+	echo "jjr-launch -s '${file_browsers[$i]}' '${browser_titles[$i]}'"
+	# If nothing is specified, try to find an already open window
+	jjr-launch -s -c "${file_browsers[$i]}" "${browser_titles[$i]}" && exit 0;
+    fi
+    $((i++))
+done
+
+jjr-dialog "`basename $0` Error" "No valid file browser found.  Launching terminal"
+# if all else fails open a terminal
+jjr-terminal &

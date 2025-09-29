@@ -1,0 +1,43 @@
+#!/usr/bin/perl -w
+
+use strict;
+use File::Basename;
+
+my $program_name = basename($0);
+
+if (@ARGV != 1)
+{
+    print "Wrong number of arguments.\n";
+    print_usage($program_name);
+}
+
+my ($dest_desktop) = @ARGV;
+my $cur_desktop = `wmctrl -d | grep "\*" | awk '{print \$1}'`;
+chomp($cur_desktop);
+my @desktops = `wmctrl -d | awk '{print \$1}'`;
+my $num_of_desktops = scalar(@desktops);
+
+my @ids = `wmctrl -l | egrep " $cur_desktop " | awk '{print \$1}'`;
+
+if ($dest_desktop < 0 || $dest_desktop > $#desktops)
+{
+    print "Argument out of range.  You only have $num_of_desktops desktops.\n";
+    print_usage($program_name);
+}
+#print "@ids";
+chomp (@ids);
+
+foreach my $id(@ids)
+{
+    my $command =  "wmctrl -i -r $id -t $dest_desktop";
+    print "$command\n";
+    my $output = `$command`;
+}
+`wmctrl -s $dest_desktop`;
+sub print_usage
+{
+    my ($program_name) = @_;
+    print "\nUsage: $program_name <desktop_number>\n";
+    print "\tDesktop number is zero indexed\n";
+    exit 1;
+}

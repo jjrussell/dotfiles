@@ -1,0 +1,4 @@
+#!/bin/bash
+
+export JJR_EMACS_MINIMAL="1"
+emacs --eval "(ediff \"$1\" \"$2\")"

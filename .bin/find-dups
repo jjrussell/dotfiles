@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# to print all dups, use -D 
+# to print a list of files that can be deleted use -d
+# which of the dups gets deleted is determined by sort.
+
+#md5sum * | sort -n | uniq -w 32 -d | perl -nae 'print "$F[1]\n";'
+SUMS=$(find . -type f -exec md5sum {} \; | sort -n | uniq -w 32 -D)
+echo $SUMS
+echo $SUMS | perl -nae 'print "$F[1]\n";'
+
+#To delete dups run
+#rm -v $(find-dups | perl -nae 'print "[1]\n";')
+

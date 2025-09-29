@@ -1,0 +1,12 @@
+#!/bin/sh
+
+VERSION=`valgrind --version`
+
+if echo ${VERSION} | grep -q "2.1" ; then
+    valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --gen-suppressions=no --suppressions=./dbms.supp $@ ./dbms
+elif echo ${VERSION} | grep -q "2.2" ; then
+#    valgrind --tool=memcheck --leak-check=yes --show-reachable=yes --gen-suppressions=no --suppressions=./dbms.supp --db-attach=yes $@ ./dbms
+    valgrind --tool=memcheck --leak-check=yes --show-reachable=yes $@
+else
+    echo "Unsupported version of valgrind: ${VERSION}"
+fi

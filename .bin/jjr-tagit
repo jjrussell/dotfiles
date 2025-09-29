@@ -1,0 +1,5 @@
+#!/bin/sh
+
+FILELIST=`find -name "*.c" -o -name "*.h" -o -name "*.cpp"`
+echo $FILELIST
+#[ ! "$FILELIST" == "" ] && etags -a `find -name "*.c" -o -name "*.h" -o -name "*.cpp"`

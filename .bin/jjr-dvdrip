@@ -1,0 +1,160 @@
+#!/usr/bin/perl -w
+use strict;
+
+### rip all audio tracks off of a dvd title and encode them as mp3
+
+# prefix for each track name:
+# $output_name_<chapter_number>.mp3
+my $temp_wav_file = "temporary.wav";
+my $lame_command = "lame --vbr-new";
+
+my $title = 1;
+my $start_chapter = 1;
+my $end_chapter = 0;
+
+#my $REMOVE_WAV = 0;
+my $OVERWRITE_MP3 = 0;
+my $CUSTOM_AID = 0;
+
+my @args;
+
+while (@ARGV)
+{
+    if ((defined $ARGV[0])&&($ARGV[0] eq "-o"))
+    {
+        $OVERWRITE_MP3 = 1;
+        shift;
+    }
+	elsif ((defined $ARGV[0])&&($ARGV[0] eq "-aid"))
+	{
+		if (defined $ARGV[1])
+		{
+			$CUSTOM_AID = $ARGV[1];
+			if ($CUSTOM_AID =~ /[^0-9]/)
+			{
+				print ("Invalid Argument: aid must be a number.\n");
+				print_usage();
+			}
+			$CUSTOM_AID = "-aid $CUSTOM_AID";
+			shift;
+		}
+
+		shift;
+	}
+    else
+    {
+        #Put all remaining args into ARGS array
+        push (@args, $ARGV[0]);
+        shift;
+    }
+}
+
+if (@args != 1 && @args != 2 && @args != 3)
+{
+    print("Wrong number of arguments\n");
+    print_usage();
+}
+
+if (defined $args[0])
+{
+    $title = $args[0];
+	if ($title =~ /[^0-9]/)
+	{
+		print ("Invalid Argument: Title must be a number.\n");
+		print_usage();
+	}
+}
+
+if (defined $args[1])
+{
+    $start_chapter = $args[1];
+	if ($start_chapter =~ /[^0-9]/)
+	{
+		print ("Invalid Argument: Title must be a number.\n");
+		print_usage();
+	}
+
+	if (defined $args[2])
+	{
+		$end_chapter = $args[2];
+		if ($end_chapter =~ /[^0-9]/)
+		{
+			print ("Invalid Argument: Title must be a number.\n");
+			print_usage();
+		}
+		elsif ($end_chapter != 0 && $start_chapter > $end_chapter)
+		{
+			print ("Invalid Argument: The ending chapter is smaller than the starting chapter.\n");
+			print_usage();
+		}
+	}
+}
+
+
+print ("*****Ripping title $title from chapter $start_chapter to $end_chapter*****\n");
+
+my $current_chapter = $start_chapter;
+
+while ( $end_chapter == 0 || $current_chapter <= $end_chapter )
+{
+
+	print ( "*****Ripping chapter $current_chapter*****\n" );
+	# define commands
+	my $new_mp3_file = sprintf ( "Title_%02d_Chapter_%02d.mp3" ,
+								 ${title}, ${current_chapter} );
+	my $convert_chapter_to_wav="mplayer dvd://$title -chapter ${current_chapter}-${current_chapter} -vo null $CUSTOM_AID -ao pcm:file=\"$temp_wav_file\"";
+	my $convert_to_mp3="$lame_command $temp_wav_file $new_mp3_file";
+	my $remove_wav="rm -r $temp_wav_file";
+
+	# run commands
+    print "EXEC 1: $convert_chapter_to_wav\n";
+    my $wav_cmd=`$convert_chapter_to_wav`;
+
+	if ( ! -f "$temp_wav_file" )
+	{
+		print ( "\n\nThis could be the end of the dvd\n" );
+		error_report("No temp wav file found", $wav_cmd);
+	}
+	print "EXEC 2: $convert_to_mp3\n";
+	my $mp3_cmd=`$convert_to_mp3`;
+
+	if ( ! -f "$new_mp3_file")
+	{
+		#This is what happens when we have reached the last chapter on the disc
+		error_report("No mp3 file found");
+		last;
+	}
+
+	# clean up temp wav file
+	if ( -f "$temp_wav_file" )
+	{
+		unlink $temp_wav_file;
+	}
+
+	print ("*****Chapter $current_chapter Done.*****\n");
+	$current_chapter++;
+}
+
+print ("\n\n*****Ripping Done*****\n\n");
+
+sub error_report
+{
+    my ($error_message, $error_output) = @_;
+    print("\n\n**********\n* Error: $error_message. Something must have gone wrong.\n");
+    if (defined $error_output)
+    {
+        print("* Here is the output from the last command:\n**********\n\n");
+        print("$error_output\n");
+    }
+    exit 1;
+}
+
+sub print_usage
+{
+    print ( "Usage: jjr-dvdrip title_number [start_chapter [end_chapter]]\n");
+    print ( "\nOptions:");
+    print ( "\n\t-aid    specify the audio stream to rip.\n");
+	print ( "\t\tUse mplayer -v dvd://1 to see which audio streams are available\n" );
+    exit 0;
+}
+

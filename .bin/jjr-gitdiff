@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# diff is called by git with 7 parameters:
+# but this is only with diff.external set but that breaks emacs git integratino
+# path old-file old-hex old-mode new-file new-hex new-mode
+
+# instead we use diff.guitool which wants args 1 and 2
+
+echo "Running git diff command $0 with args '$@'"
+
+if [ "$(uname)" = "Darwin" ] ; then
+    echo "On Mac, using opendiff"
+    # opendiff old new
+    #opendiff "$2" "$5"
+    emacs -diff "$1" "$4"
+else
+    echo "Unknown platform."
+    exit 1
+fi

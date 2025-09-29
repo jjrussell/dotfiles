@@ -1,0 +1,1053 @@
+# my generic shell stuff that can be sourced for any sh based shell
+
+umask 0022
+# Test for an interactive shell.  There is no need to perform some stesp
+# for non-interactive shells like scp and rcp, and it's important
+# to refrain from outputting anything in those cases.
+# if [ $- == *i* ] ; then
+INTERACTIVE="yes"
+
+# set to 1 to debug timing
+DEBUG=
+
+__debug()
+{
+    if [ $DEBUG ] ; then
+        echo "$(date +%H:%M:%S:%N) -- $*"
+    fi
+}
+
+
+__debug "Loading .jshrc"
+############################################################
+#
+#  Internal functions
+#
+############################################################
+find_link_target ()
+{
+    # resolve symlinks until we find the actual startup script
+    # $0 may be a softlink
+    PRG="$1"
+
+    while [ -h "$PRG" ]; do
+        ls=$(\ls -ld "$PRG")
+        link=$(expr "$ls" : '.*-> \(.*\)$')
+        if expr "$link" : '.*/.*' > /dev/null; then
+            PRG="$link"
+        else
+            PRG=$(dirname "$PRG")/"$link"
+        fi
+    done
+
+    echo "$PRG"
+}
+
+find_link_target_dir ()
+# output the directory containing the target of a symlink, or just
+# dirname if its a normal file
+{
+    FILE=$(find_link_target $1)
+    TARGET=$(dirname $FILE)
+    if echo $TARGET | grep "^/" > /dev/null 2>&1 ; then
+        # if this is an absolute link cd to dirname
+        cd $(dirname $FILE)
+    else
+        # relative link use dirname of $1 as parent dir
+        cd $(dirname $1)/$(dirname $FILE)
+    fi
+    echo $PWD
+}
+
+pathmunge ()
+## If $1 is not in PATH then prepend it, else do nothing.
+## If $2 is "after", then append $1 to PATH
+## If $2 is before, then explicitly remove $1 from the
+## path before prepending it.
+{
+    __debug "Inside pathmunge args $*"
+    if [ ! -d "$1" ] ; then
+        #echo "Can't add '$1' to the path as it doesn't exist"
+        return
+    fi
+    
+    # remove the path element from the path so we can prepend it later
+              # can we just prepend it? Do we need to remove it?
+    #if [ "$2" = "before" ] && which ruby > /dev/null ; then
+
+        # __debug "_Before pathmunge ruby $(ruby -v) args $*"
+        # PATH=$(echo $PATH | /usr/bin/ruby -F":" -ane "\$F.delete(\"$1\") ; puts \$F.uniq.join(\":\")")
+        # __debug "_After pathmunge ruby args $*"
+    #fi
+
+    if ! echo "$PATH" | egrep "(^|:)$1($|:)" >/dev/null 2>&1; then
+        if [ "$2" = "after" ] ; then
+            PATH=$PATH:$1
+        else
+            PATH=$1:$PATH
+        fi
+    fi
+}
+
+manpathmunge ()
+## If $1 is not in MANPATH then prepend it, else do nothing.
+## If $2 is "after", then append $1 to MANPATH
+## If $2 is before, then explicitly remove $1 from the
+## path before prepending it.
+{
+    if [ ! -d "$1" ] ; then
+        #echo "Can't add '$1' to the manpath as it doesn't exist"
+        return 1
+    fi
+
+    if [ "$2" = "before" ] ; then
+        MANPATH=`echo $MANPATH | sed "s|:$1||g"`
+    fi
+    if ! echo $MANPATH | egrep "(^|:)$1($|:)" >/dev/null 2>&1; then
+        if [ "$2" = "after" ] ; then
+            MANPATH=$MANPATH:$1
+        else
+            MANPATH=$1:$MANPATH
+        fi
+    fi
+}
+
+bcd ()
+# cd back until you find a directory that matches the argument. If nothing then cd ..
+{
+    cd "$(echo $PWD | grep -o ".*/$1")"
+}
+
+
+# Pushes local SSH public key to another box - found at https://github.com/rtomayko/dotfiles/blob/rtomayko/.bashrc
+push_ssh() {
+    local _host
+    local SSH_PORT=22
+    test -f ~/.ssh/id_dsa.pub || ssh-keygen -t dsa
+    for _host in "$@";
+    do
+        ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o NumberOfPasswordPrompts=0 -p $SSH_PORT $_host "echo Testing" &> /dev/null
+        if [ $? -ne 0 ]; then
+            echo "Pushing public key to $_host..."
+            ssh -q -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -p $SSH_PORT $_host "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys" < ~/.ssh/id_dsa.pub
+        else
+            echo "Passwordless SSH access for $_host is already configured"
+        fi
+    done
+}
+
+push_ssh_and_login(){
+    ssh -o NumberOfPasswordPrompts=0 "$@"
+    if [ $? -ne 0 ]; then
+        push_ssh "$@"
+        ssh -o NumberOfPasswordPrompts=0 "$@"
+    fi
+}
+
+
+# Functions that used to be aliases
+pseg()
+{
+    #ps -e -o pid,user,args | grep -v grep | egrep -i "(PID USER|$1)"
+    ps -e -o pid,user,command | grep -v grep | egrep -i "$1"
+}
+
+ifind()
+{
+    find  . -follow -iname "*$**"
+}
+
+# Extracts archives - found at http://pastebin.com/CTra4QTF
+extract() {
+    case $@ in
+        *.tar.bz2) tar -xvjf "$@" ;;
+        *.tar.gz) tar -xvzf "$@" ;;
+        *.bz2) bunzip2 "$@" ;;
+        *.rar) unrar x "$@" ;;
+        *.gz) gunzip "$@" ;;
+        *.tar) tar xf "$@" ;;
+        *.tbz2) tar -xvjf "$@" ;;
+        *.tgz) tar -xvzf "$@" ;;
+        *.zip) unzip "$@" ;;
+        *.xpi) unzip "$@" ;;
+        *.Z) uncompress "$@" ;;
+        *.7z) 7z x "$@" ;;
+        *.ace) unace e "$@" ;;
+        *.arj) arj -y e "$@" ;;
+        *) echo "'$@' cannot be extracted via $0()" ;;
+    esac
+}
+
+# move the target thing to our internal home directory and symlink it back to where it used to be
+internalize() {
+    local INTERNAL_HOME="${HOME}/Dropbox/jjr-environment/home"
+    mv -v "$1" ${INTERNAL_HOME} && ln -s -v "${INTERNAL_HOME}/$1" .
+}
+
+__debug "Finished defining functions"
+
+############################################################
+# Config
+############################################################
+[ -e ~/.secrets ] && source ~/.secrets # passwords, keys and such
+
+# find target of .bashrc but only take dir with jjr- in it,
+# cd to it and echo to set.
+#JJR_ENV=$(cd $(find_link_target_dir ~/.bashrc | \egrep -o "^.*jjr-[^/]+") && echo $PWD)
+# have to use the sed version because grep -o isn't on Solaris.
+export JJR_ENV=$(cd $(find_link_target_dir ~/.jshrc | sed -n "s/\(^.*jjr-[^/]*\).*/\1/p") && echo $PWD)
+export MY_ENV="$JJR_ENV"
+#JJR_ENV="${HOME}/jjr-environment"
+JJR_BIN="~/.bin"
+#JJR_TMP="${HOME}/tmp"
+JJR_TERM="aterm"
+JJR_CLASSPATH="${JJR_ENV}/classpath/*"
+
+#############################################################
+##
+##  RVM and ruby ruby
+##
+#############################################################
+
+# Add RVM to PATH for scripting
+# for some reason adding it to the path if its already there messes with rvm-prompt command
+# this can happen if we re-source this file
+# This loads RVM into a shell session.
+if which rbenv 2>&1 > /dev/null ; then
+    __debug "Initializing rbenv shell environment"
+    if echo $SHELL | grep -q zsh ; then
+        eval "$(rbenv init - zsh)"
+    else
+        eval "$(rbenv init -)"
+    fi
+elif [[ -s "$HOME/.rvm/scripts/rvm" ]] ; then
+    . "$HOME/.rvm/scripts/rvm"
+    #PATH=$PATH:$HOME/.rvm/bin # Add RVM to PATH for scripting
+
+    __debug "Adding rvm to path. rvm_bin_path=${rvm_bin_path}, PATH=${PATH}"
+    [ -n "$rvm_bin_path" ] && echo $PATH | grep -q "$rvm_bin_path" || PATH=${rvm_bin_path}:${PATH}
+
+
+    # https://github.com/rvm/rvm/issues/3620
+    # suppress path warnings when rvm isn't first in the path. Leave my path alone
+    export rvm_silence_path_mismatch_check_flag=1
+
+    # some functions used for displaying active rvm ruby in prompt
+    [ -r "$rvm_path/contrib/ps1_functions" ] && source "$rvm_path/contrib/ps1_functions"
+fi
+
+
+
+
+if echo $SHELL | grep zsh > /dev/null 2>&1 ; then
+    __debug "Loading .zshrc"
+    RC_FILE="${HOME}/.zshrc"
+else
+    __debug "Loading .bashrc"
+    RC_FILE="${HOME}/.bashrc"
+fi
+# for java utilities and groovy scripts
+CLASSPATH=$JJR_CLASSPATH:$CLASSPATH
+#JJR_TERM="gnome-terminal"
+
+# Don't append duplicate commands to history
+# also don't append bg, fg, or exit
+HISTIGNORE="&:[bf]g:exit"
+
+# I'm sick of not having stuff in my history
+HISTSIZE=10000
+
+
+export JJR_ENG="${HOME}/src"
+export MY_ENG="$JJR_ENG"
+pathmunge "$JJR_ENG/bin"
+pathmunge "$HOME/.bin"
+
+
+#this changes the sort order to old unix standard.
+# CAPITAL letters first, etc.
+#LC_ALL=C
+
+# This is standard sorting with lowercase and capital letters treated
+# the same for sorting purposes
+# LC_ALL=en_US
+# LANG=en_US
+
+# Make less case insensitive when searching and NEVER ring the bell
+# -R makes it display color characters so grep --color | less works
+# grep will disable color when attached to a pipe so you need --color=always
+if [ -n "$LESS" ] ; then
+    LESS="$LESS -i -Q -R"
+else
+    alias less='less -i -Q -R'
+fi
+
+__debug "Before pathmunging"
+############################################################
+#  Set PATH, MANPATH
+############################################################
+
+#Just in case my path isn't set up properly.
+pathmunge /bin
+pathmunge /usr/bin
+pathmunge /usr/games/bin
+
+# For service starting and stopping
+pathmunge /etc/init.d after
+
+# I really want /usr/local/bin at the front of the path
+pathmunge /usr/local/bin before
+# mac ports, I use this less so put it before /sw as it only has what I want
+pathmunge /opt/local before
+
+
+# system sbins
+pathmunge /sbin after
+pathmunge /usr/sbin after
+pathmunge /usr/local/sbin after
+
+# Personal bin directories.  Add them if they exist
+# I usually leave bin in JJR_ENV/bin but check for them
+# in ~ just in case.
+# Do these last so they are always first in the path
+pathmunge ~/.local/bin before
+pathmunge ~/bin before
+pathmunge $JJR_BIN before
+pathmunge /Developer/usr/bin
+
+#############################################################
+##
+## TMUX as default shell
+##
+#############################################################
+# this will replace us with tmux if its available. This has to be down
+# here because tmux requires some stuff to be in the path which is set above.
+
+# Not crazy about starting tmux automatically.
+# if [[ -z "$TMUX" ]] && [[ -z "$SSH_CONNECTION" ]] && which tmux 2>&1 > /dev/null ; then
+#     #tmux attach-session || tmux new-session
+#     if ! tmux attach-session ; then
+#         tmux
+#     fi
+# fi
+
+tmux_plugins_update() {
+    pushd $HOME/.tmux/plugins || return
+    for PLUGIN in * ; do
+        echo "Updating plugin ${PLUGIN}"
+        pushd $PLUGIN || return
+        git pull || return
+        popd || return
+    done
+    pushd
+}
+
+
+__debug "Before pathmunging /opt"
+
+## Add /opt packages to the path if they have bin directories
+if [ -d /opt ] && [ "$(\ls /opt | wc -l)" -ne "0" ] ; then
+    for DIR in /opt/*; do
+        if [ -d "$DIR/bin" ]; then
+            pathmunge "$DIR/bin" after
+        fi
+    done
+fi
+
+__debug "Before pathmunging $JJR_ENG/tools"
+if [ -d $JJR_ENG/tools ] ; then
+    for DIR in $JJR_ENG/tools/*; do
+        if [ -d "$DIR/bin" ]; then
+            pathmunge "$DIR/bin" before
+        else
+            pathmunge "$DIR" before
+        fi
+
+        if [ -d "$DIR/tools" ]; then
+            pathmunge "$DIR/tools"
+        fi
+
+        if [ -d "$DIR/platform-tools" ]; then
+            pathmunge "$DIR/platform-tools"
+        fi
+    done
+fi
+
+[ -d "/opt/bin" ] && pathmunge "/opt/bin"
+# stupid vmware
+[ -d "/opt/vmware/workstation/bin" ] && pathmunge "/opt/vmware/workstation/bin" after
+
+
+# Some programs look to these evironment variables for
+# text editor programs. If we have my stripped down emacs,
+# use that, else use vi.
+if which e > /dev/null 2>&1 ; then
+    VISUAL=runemacs
+elif which vim >/dev/null 2>&1 ; then
+    VISUAL=vim
+else
+    VISUAL=vi
+fi
+EDITOR=$VISUAL
+
+
+# Set colors for terminal.
+# dircolors will export the LS_COLORS environment variable
+# Check if I have DIR_COLORS file
+# else see if the system has one.
+# else just go with the default for dircolors
+# SunOS's which command returns 0 even on failure.  Morons.
+# and yes, we have to try which which first because sometimes that fails.
+__debug "Before dircolors"
+if which which >/dev/null 2>&1 && which file >/dev/null 2>&1 &&
+        ! file $(/usr/bin/which which) | egrep "(C shell|csh script)" >/dev/null 2>&1 &&
+        which dircolors > /dev/null 2>&1 ; then
+    if [ -r "${HOME}/.dir_colors" ] ; then
+        eval `dircolors -b ${HOME}/.dir_colors`
+    elif [ -r "/etc/DIR_COLORS" ] ; then
+        eval `dircolors -b /etc/DIR_COLORS`
+    else
+        eval `dircolors -b`
+    fi
+fi
+__debug "After dircolors"
+## Blessed silence
+## bell supression also done in .inputrc 'set bell-style none'
+#[ -n "$DISPLAY" ] && xset b off 2>/dev/null
+
+# Some platform specific stuff
+if [ "$(uname)" = "Darwin" ] ; then
+    # for some reason, top on mac sorts by pid by default.
+    # what the hell is the point of that?
+    alias top='top -o cpu'
+
+    # add man path for macports
+    [ -d /opt/local/man ] && manpathmunge /opt/local/man
+
+    alias wt_single="networksetup -setairportpower en0 off; echo 'restarting wi-fi' ; sleep 1 ; networksetup -setairportpower en0 on"
+    alias wt="wt_single ; sleep 1 ; wt_single"
+
+    #############################################################
+    ##
+    ## Homebrew on the mac
+    ##
+    #############################################################
+    if which brew > /dev/null 2>&1 ; then
+        # add ruby bin from hombrew
+        # don't need this with RVM installed
+        #    pathmunge /usr/local/Cellar/ruby/*/bin before
+        # coreutils are prefixed with g so this puts the real names in the path
+        pathmunge $(brew --prefix coreutils)/libexec/gnubin before
+        pathmunge $(brew --prefix)/bin
+        [ -e $(brew --prefix)/etc/profile.d/z.sh ] && source $(brew --prefix)/etc/profile.d/z.sh
+    fi
+
+elif [ "$(uname)" = "SunOS" ] ; then
+    # This makes color work on solaris
+    TERM=dtterm
+    # But vi really doesn't like TERM=dtterm
+    alias vi='env TERM=xterm vi'
+    # A lot of binutils stuff is usually in here.
+    [ -d /usr/ccs/bin ] && pathmunge /usr/ccs/bin after
+    # Most standard X utils are usually here
+    [ -d /usr/openwin/bin ] && pathmunge /usr/openwin/bin after
+    # Don't use more -s as the man pager, it sucks. Use less if we have it.
+    if which less >/dev/null 2>&1 ; then
+        export PAGER=less
+    fi
+    # We have to set this because setting MANPATH at all on Solaris overrides the
+    # system default.  If we add our custom man pages above, we won't find
+    # any standard man pages without this.
+    manpathmunge /usr/share/man
+fi
+
+
+__debug "Before Loading aliases"
+############################################################
+##
+##  Aliases
+##
+############################################################
+if [ -n "$INTERACTIVE" ] ; then
+    # Some command args don't always work with non-gnu stuff
+    # check for gnu utilities with --version flag.
+    unalias ls > /dev/null 2>&1
+    unalias ll > /dev/null 2>&1
+    if ls --color > /dev/null 2>&1 ; then
+        alias ls='ls --color'
+        alias ll='ls -lh'
+    else
+        alias ls='ls -F'
+        alias ll='ls -l'
+    fi
+    if df --version >/dev/null 2>&1 ; then
+        alias df='df -h'
+    else
+        alias df='df -k'
+    fi
+    if  ps --version >/dev/null 2>&1 ; then
+        alias pse='ps -e --forest -o pid,user,comm,args'
+        alias psel='pse | less'
+        alias psef='ps -eHF | less'
+    elif [ "$(uname)" = "Darwin" ] ; then
+        alias pse='ps -em -o pid -o stat -o time -o %cpu -o %mem -o vsz -o rss -o command'
+        alias psel='pse | less -S'
+    else
+        alias pse='ps -e'
+        alias psel='ps -e | less'
+    fi
+    if grep --version >/dev/null 2>&1 ; then
+        alias grep='grep --color=always -I'
+        alias egrep='egrep --color=always -I'
+        alias igrepm='grep --color=always -iI'
+    fi
+
+    #other aliases
+    alias l='ll'
+    alias lx='ls -X'
+    alias lsd='ls -lah | grep "^d"'
+    alias b='cd ..'
+    alias src='cd $JJR_ENG'
+    alias loc='cd /usr/local'
+    alias bin='cd ${JJR_BIN}'
+    alias tmp='cd ~/tmp'
+    alias bashrc='$EDITOR ~/.bashrc'
+    alias fstab='$EDITOR /etc/fstab'
+    alias s='. $RC_FILE'
+    alias h='history'
+    alias recal='history|igrep'
+    alias gsu='gnomesu -c' # graphical su
+    alias psx='ps -aux'
+    alias path='echo -e ${PATH//:/\\n}'
+    alias type='type -a' ## this which-like bash builtin rocks
+    alias scd='cd `subcd $1 $2`' #call script which replaces $1 with $2 in pwd
+    alias sudo='PATH=$PATH:/usr/sbin:/sbin sudo' # add sbins to sudo path
+    alias mkdir='mkdir -p' # create parent directories if they don't exist
+    alias tree='tree -CA' # turn on color and solid lines for tree
+    alias tunes='cd ~/Music/tunes'
+    alias pics='cd ~/Data/media/Pictures/Photos'
+    alias eng='cd ${JJR_ENG}'
+    alias vncviewer='vncviewer -Shared'
+    alias sc="screen -R -D" # reattach old screen or make new one
+    # http://lists.debian.org/debian-kernel/2004/12/msg00397.html
+    alias hwclock='sudo hwclock --directisa'
+
+    alias re='runemacs'
+    function ref() {
+        runemacs $(ifind $1 | grep -v .git)
+    }
+    # most common rsync usage - maybe add --delete to this to remove
+    # files deleted in the source from the backup
+    # use --no-g becuase users don't have permission to change group
+    # ownership of files on hotplugged drives and --archive sets it.
+    alias jrsync='rsync --archive --update --backup'
+
+    local MVN_CMD="mvnd"
+
+    alias mvndfast="$MVN_CMD  -DskipTests -DskipValidation -Dcheckstyle.skip -Dhs-swagger.skip=true compile "
+    alias mvnfast="mvn -DskipTests -DskipValidation -Dcheckstyle.skip -Dhs-swagger.skip=true compile"
+    alias mvnfastclean="mvnfast clean"
+    # print out run some ruby code really fast. Good for calculator etc
+    function r() {
+        ruby -e "puts $*"
+    }
+
+    # Gentoo aliases
+    if which emerge >/dev/null 2>&1 ; then
+        # Run emerge at a lower process priority so the desktop is still
+        # responsive, even if your updating
+        alias emerge='nice -n 19 emerge'
+        alias etags='etags --members' # gets public static vars in java
+        alias unmerge='emerge --unmerge'
+        alias qpkg='qpkg -i'
+        alias cdport='cd /usr/portage'
+        alias revdep-rebuild='revdep-rebuild -X'
+    fi
+
+
+fi
+
+############################################################
+#
+#  Special Cases
+#
+############################################################
+
+# for emacs subshells with no color ls or prompt
+if [ "$TERM" = "dumb" ] || [ "$(uname)" = "SunOS" ]
+then
+    alias ls='ls -F'
+    PS1="\n\h:\n\w> "
+fi
+
+
+############################################################
+#
+#  External sources
+#
+############################################################
+__debug "Before Loading work stuff"
+#############################################################
+##
+## Host specific local settings that used to be in .bash_local
+##
+#############################################################
+
+# java setup
+if [ $(uname) = "Darwin" ] ; then
+    export JAVA_HOME="$(/usr/libexec/java_home 2>&1 > /dev/null)"
+elif [ -r "$JJR_ENG/tools/jdk" ] ; then
+    # set a reasonable JAVA_HOME if its not already set.
+    export JAVA_HOME=${JAVA_HOME:-"$JJR_ENG/tools/jdk"}
+fi
+
+[ -n "$JAVA_HOME" ] && pathmunge "$JAVA_HOME/bin" before
+
+# for activemq build environment
+export MAVEN_OPTS="-Xmx3000m"
+pathmunge ${JJR_ENG}/tools/maven/bin
+
+alias be='bundle exec'
+alias bi='bundle install'
+#alias knife='be knife'
+alias befs='be foreman start'
+alias irb='EDITOR=runemacs pry'
+alias pry='EDITOR=runemacs pry'
+
+ruby_check(){
+    local BAD_SYNTAX=""
+    for RB in $(find . -name *.rb) ; do echo -n "$RB -- " ; ruby -c $RB || BAD_SYNTAX="$BAD_SYNTAX\n$RB" ; done
+    if [ -n "$BAD_SYNTAX" ] ; then
+        echo "Files with syntax errors"
+        echo "$RB"
+        return 1
+    else
+        echo ""
+        echo "All files have valid syntax"
+    fi
+}
+
+#############################################################
+##
+## Go
+##
+#############################################################
+
+# because go get and go install doesn't fucking work at all
+
+
+[[ -s "$HOME/.gvm/scripts/gvm" ]] && source "$HOME/.gvm/scripts/gvm"
+export GOPATH=~/eng/src/go
+pathmunge $GOPATH/bin
+pathmunge $GOPATH/src/github.com/mitchellh/gox
+pathmunge $GOPATH/src/github.com/mitchellh/packer/pkg/darwin_386
+
+
+go_setup() {
+    go get golang.org/x/tools/cmd/...
+    go get github.com/rogpeppe/godef
+    go get -u github.com/dougm/goflymake
+    go get -u github.com/golang/lint/golint
+    go get -u github.com/nsf/gocode
+}
+
+
+#############################################################
+##
+## GIT
+##
+#############################################################
+#
+# Will return the current branch name
+# Usage example: git pull origin $(current_branch)
+#
+current_branch() {
+    ref=$(\git symbolic-ref HEAD 2> /dev/null) || return
+    echo ${ref#refs/heads/}
+}
+
+# echo * if we are in a git branch and it is dirty. used in prompt
+parse_git_dirty () {
+    if [[ -n $(\git status -s 2> /dev/null) ]]; then
+        echo "*"
+        return 1
+    else
+        echo ""
+        return 0
+    fi
+}
+
+# get the name of the branch we are on
+git_prompt_info() {
+    ref=$(\git symbolic-ref HEAD 2> /dev/null) || return
+    echo "git:($(current_branch)$(parse_git_dirty))"
+}
+
+# switch to either develop or master, get latest and rebase the branch I was on with that branch we just pulled
+grb() {
+    # set -x
+    if [ -z "$TARGET_BRANCH" ] ; then
+        local TARGET_BRANCH=master
+        if git branch | egrep -q "^[ ]*develop$" && [ ! "$(current_branch)" = "develop" ]  ; then
+            TARGET_BRANCH=develop
+        fi
+    fi
+
+    local original_branch=$(current_branch)
+
+    # If squash and merge is used on github it will create a new commit that will not be present
+    # on the local branch and confuses rebase.
+    echo "-------------------------------"
+    echo "Pulling latest for branch $original_branch"
+    echo "-------------------------------"
+    git pull origin $original_branch || echo "this branch hasn't been pushed yet. No remote updates to fetch"
+    echo "-------------------------------"
+    echo "Checking out $TARGET_BRANCH"
+    echo "-------------------------------"
+    git checkout $TARGET_BRANCH || return 1
+    echo "-------------------------------"
+    echo "Pulling $TARGET_BRANCH"
+    echo "-------------------------------"
+    git pull origin $TARGET_BRANCH || return 1
+
+    if [ "$original_branch" != "master" ] ; then
+        echo "-------------------------------"
+        echo "Switching back to $original_branch"
+        echo "-------------------------------"
+        git checkout $original_branch || return 1
+        echo "-------------------------------"
+        echo "Rebasing $original_branch onto $TARGET_BRANCH"
+        echo "-------------------------------"
+        git rebase $TARGET_BRANCH || return 1
+    fi
+}
+
+hubpr() {
+    PR_URL="$(hub pr list -h $(current_branch) -f "%U%n")"
+    if [ -n "$PR_URL" ] ; then
+        open "$PR_URL"
+    else
+        echo "Pushing $(current_branch) and creating new PR for the current branch"
+        git push origin $(current_branch) && hub pull-request -o
+    fi
+}
+
+alias req="pull_request"
+
+
+# git-status-emacs() {
+#     emacsclient --eval "(shell-git-status \"$PWD\")" ; runemacs
+# }
+# alias gse=git-status-emacs
+
+clean_branches() {
+    local original_branch=$(current_branch)
+
+    local TARGET_BRANCH=master
+    # if we have devlop and we're merged there, we're good if its there
+    if git branch | egrep -q "^[\* ]*develop$"  ; then
+        TARGET_BRANCH=develop
+    fi
+    echo "-------------------------------"
+    echo "Checking out and pulling $TARGET_BRANCH"
+    echo "-------------------------------"
+    git checkout $TARGET_BRANCH
+    git fetch
+    git pull origin $(current_branch)
+    echo "-------------------------------"
+    echo "Pruning remote origin"
+    echo "-------------------------------"
+    git remote prune origin
+    #    for BRANCH in $(git branch --merged | \grep -v "\*" | \grep "/" ) ; do
+    for BRANCH in $(git branch --merged | \grep -v "\*" ) ; do
+        echo "-------------------------------"
+        echo "Deleting merged branch $BRANCH"
+        echo "-------------------------------"
+        git branch -d $BRANCH
+    done
+
+    # were we on master or develop when we started?
+    if [ ! "$(current_branch)" = "$original_branch" ] ; then
+        # If we didn't delete the original branch above because it was merged
+        # then try to check it out again
+        if git branch | grep -q $original_branch ; then
+            git checkout $original_branch
+        fi
+    fi
+}
+
+# Do any local cleanup, run a build, and push if it passes
+clean_push() {
+    if [ ! -d .git ] ; then
+        echo "Must be run from root of git repo"
+        return 1
+    fi
+    # cleans up ordering in pom files
+    mvn com.github.ekryd.sortpom:sortpom-maven-plugin:sort -Dsort.keepBlankLines -Dsort.sortDependencies=scope,groupId,artifactId -Dsort.createBackupFile=false
+    
+    if ! parse_git_dirty ; then
+        echo "Commit any changes before continuing"
+        git status
+        return 1
+    fi
+
+    if ! mvn verify ; then
+        echo "Your build failed. WOMP WOMP"
+        return 1
+    fi
+
+    if ! git push origin $(current_branch) ; then
+        return 1
+    fi
+    hubpr
+}
+
+# if we have hub installed, use that instead of vanilla git
+# zsh git completion doesn't like this for some reason 2013-05-21
+# if which hub 2>&1 > /dev/null ; then
+#     alias git=hub
+# fi
+
+# slashes are to use real git even if hub is installed where hub doesn't do anything different
+
+alias g='git'
+alias gs='\git status -sb'
+alias ga='\git add '
+alias gd='\git diff -w'
+alias gco='\git checkout '
+alias gk='\gitk --all&'
+alias gx='\gitx --all'
+alias glog='\git l'
+
+alias gst='git stash save'
+alias gstp='git stash pop'
+
+alias gf='\git fetch'
+alias gup='\git fetch && \git rebase'
+alias gdv='\git diff -w "$@" | vim -R -'
+alias gc='\git commit -v'
+alias gca='\git commit -v -a'
+alias gb='\git branch'
+alias gba='\git branch -a'
+alias gcount='\git shortlog -sn'
+alias gcp='\git cherry-pick'
+alias glg='\git log --stat --max-count=5'
+
+# these aliases take advantage of the git related functions above
+alias gl='git pull origin $(current_branch)'
+
+alias greb='git rebase -i @{u}'
+
+alias gp='git push origin $(current_branch)'
+alias ggpnp='git pull origin $(current_branch) && git push origin $(current_branch)'
+
+alias got='git '
+alias get='git '
+
+function gcr2() {
+    #!/bin/bash
+
+    # gcr - Git Code Review
+    # Written by Josh Dick <jodick@cisco.com>
+
+    # Shows you all commits and files in a private branch that haven't been merged upstream,
+    # and optionally performs an interactive diff.
+
+    # By default, gcr will show *your* unmerged commits; gcr -a will show *all* unmerged commits.
+
+    current_branch_name=`git name-rev --name-only HEAD 2> /dev/null`
+
+    if [ $? -ne 0 ]; then
+        echo "ERROR: `pwd` is not a Git repository."
+        exit 1
+    fi
+
+    if [ "$current_branch_name" = master ]; then
+        echo "ERROR: You must check out a private branch to use `basename $0`."
+        exit 1
+    fi
+
+    git_user=`git config user.name`
+
+    if [[ $1 = "-a" ]]; then
+        echo -e "\n*** Showing commits from all authors. ***"
+    else
+        echo -e "\n*** Showing commits exclusively from author $git_user. ***"
+    fi
+
+    i=1
+    for commit_id in `git cherry -v master | cut -d ' ' -f 2`
+    do
+        if [[ $1 = "-a" ]]; then
+            commit_ids[$i]=$commit_id
+            (( i++ ))
+        else
+            commit_author=`git log --format=%an -n 1 $commit_id`
+            if [[ $commit_author = $git_user ]]; then
+                commit_ids[$i]=$commit_id
+                (( i++ ))
+            fi
+        fi
+    done
+
+    echo -e "\nRelevant unique commits on branch $current_branch_name:\n"
+
+    for commit_id in ${commit_ids[@]}
+    do
+        echo `git log --format="%h (%an) %s" -n 1 $commit_id`
+    done
+
+    echo -e "\nList of all files changed in the above commits:"
+
+    for commit_id in ${commit_ids[@]}
+    do
+        for changed_file in `git diff --name-only $commit_id $commit_id~1`
+        do
+            all_changed_files="$all_changed_files\n$changed_file"
+        done
+    done
+
+    changed_files=`echo -e $all_changed_files | sort | uniq`
+    echo -e "$changed_files\n"
+
+    while true; do
+        echo "Start interactive diff for above files? [y/n]"
+        read yn
+        case $yn in
+            [Yy]* ) echo "Starting interactive diff for all files listed above..."; break;;
+            [Nn]* ) echo "Exiting."; exit;;
+            * ) echo "Please answer yes or no.";;
+        esac
+    done
+
+    for file in $changed_files
+    do
+        echo "Starting interactive diff for $file..."
+        git difftool master -- $file
+    done
+
+    echo "Interactive diff complete!"
+}
+
+__debug "Done defining functions and aliases"
+
+#############################################################
+##
+## NVM
+##
+#############################################################
+
+# takes a long time and I never use it
+# export NVM_DIR="$HOME/.nvm"
+# [ -s "/opt/homebrew/opt/nvm/nvm.sh" ] && \. "/opt/homebrew/opt/nvm/nvm.sh"  # This loads nvm
+# [ -s "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/opt/homebrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+
+#############################################################
+##
+## Android
+##
+#############################################################
+
+if [ "$(uname)" = "Darwin" ] ; then
+    # installed by android studio here. That's the easiest way to get it
+    if [ -d $HOME/Library/Android/sdk ]; then
+        export ANDROID_HOME=$(\ls -d $HOME/Library/Android/sdk)
+        pathmunge $ANDROID_HOME/platform-tools
+        pathmunge $ANDROID_HOME/tools
+    fi
+elif [ -d $JJR_ENG/tools/adt-bundle/sdk ] ; then
+    export ANDROID_HOME=$(\ls -d $JJR_ENG/tools/adt-bundle/sdk)
+    pathmunge $ANDROID_HOME/platform-tools
+    pathmunge $ANDROID_HOME/tools
+fi
+# if \ls $JJR_ENG/tools/android-ndk* > /dev/null 2>&1 ; then
+#     export ANDROID_NDK=$(\ls -d $JJR_ENG/tools/android-ndk*)
+# fi
+
+#############################################################
+##
+## AWS
+##
+#############################################################
+
+if which aws > /dev/null ; then
+    # aws tools have about 30 ways to find the credentials.
+    # Set them all
+
+    # The stuff below requires these env vars which are sourced from .secrets
+    # PRODUCTION_AWS_ACCESS_KEY
+    # PRODUCTION_AWS_SECRET_KEY
+    # DEV_AWS_ACCESS_KEY
+    # DEV_AWS_SECRET_KEY
+
+
+    export AWS_CREDENTIAL_FILE=~/.ec2.tapjoy.creds
+    export AWS_DEFAULT_REGION="us-east-1"
+    export DEV_AWS_SECRET_ACCESS_KEY=$DEV_AWS_SECRET_KEY
+
+    export EC2_CERT=~/.aws/cacert.pem
+    export EC2_PRIVATE_KEY=~/.aws/privkey.pem
+
+    function set_aws_creds(){
+        cat << EOF > $AWS_CREDENTIAL_FILE
+AWSAccessKeyId=$AWS_ACCESS_KEY
+AWSSecretKey=$AWS_SECRET_KEY
+EOF
+        # different aws tools use different variables... of course
+        export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY
+        export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_KEY
+        export TAPJOY_S3_KEY=${AWS_ACCESS_KEY_ID}
+        export TAPJOY_S3_SECRET=${AWS_SECRET_ACCESS_KEY}
+        # new aws cli
+        ruby -pi -e 'gsub(/^aws_access_key_id.*/, "aws_access_key_id = #{ENV["AWS_ACCESS_KEY"]}")' ~/.aws/config
+        ruby -pi -e 'gsub(/^aws_secret_access_key.*/, "aws_secret_access_key = #{ENV["AWS_SECRET_KEY"]}")' ~/.aws/config
+    }
+
+    # tapjoy production aws IAM keys for my user
+    function prod() {
+        export AWS_ACCESS_KEY=$PRODUCTION_AWS_ACCESS_KEY
+        export AWS_SECRET_KEY=$PRODUCTION_AWS_SECRET_KEY
+        set_aws_creds
+    }
+
+    # tapjoy qa account dev user keys
+    function qa() {
+        # dev account
+        export AWS_ACCESS_KEY=$DEV_AWS_ACCESS_KEY
+        export AWS_SECRET_KEY=$DEV_AWS_SECRET_KEY
+        set_aws_creds
+    }
+
+    function aws_env() {
+        env | grep AWS
+    }
+
+    # default to qa creds
+    # qa
+fi
+
+#############################################################
+##
+## Work stuff
+##
+#############################################################
+
+export WORK_USERNAME=jorussell
+export USER_EMAIL="${WORK_USERNAME}@hubspot.com"
+
+# Source global bashrc and local settings
+# Source /etc/bashrc first so it doesn't override personal settings
+#[ -f /etc/bashrc ] && . /etc/bashrc
+#[ -f ~/.bash_local ] && . ~/.bash_local
+
+############################################################
+#
+#  Export environment variables
+#
+############################################################
+
+# export these at the end because we may edit them a few times in this file.
+export PS1 PATH MANPATH TMOUT PROMPT_COMMAND VISUAL EDITOR HISTIGNORE \
+       CHOICESPATH TERM WINDOW_MANAGER JJR_ENV JJR_BIN JJR_TERM
+unset TERMINFO
+__debug "Loading .jshrc completed"

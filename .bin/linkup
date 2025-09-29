@@ -1,0 +1,250 @@
+#!/bin/bash
+
+
+# commands
+MKDIR="mkdir --verbose"
+
+if [ ! "$(dirname $0)" = "." ] ; then
+    echo "Run this script from its directory so we can find stuff"
+    exit 1
+fi
+
+# source our .bashrc file to make sure we have the right functions
+. ../home/.bashrc
+
+# find parent directory of this script
+HOME_DIR=$(cd $(find_link_target_dir $0)/../home && echo $PWD)
+echo home dir is $HOME_DIR
+
+# our home dir is a peer of this bin directory so look in there
+# for our .bashrc and install it if necessary
+if \ls -l ~/.bashrc | egrep "\-> $HOME_DIR" ; then
+#if ! diff ~/.bashrc $HOME_DIR/../home/.bashrc ; then
+    echo "~/.bashrc is already a symlink to $HOME_DIR"
+else
+    echo "~/.bashrc is different from $HOME_DIR/.bashrc. Replacing it"
+    mv -v ~/.bashrc ~/bashrc.bak
+    ln -sf $HOME_DIR/.bashrc ~/.bashrc
+    . ~/.bashrc
+fi
+
+if [ -z "$JJR_ENV" ] ; then
+    echo "JJR_ENV environment variable is not set."
+    exit 1
+# Specify jorussel here because if we just say $USER and we run this as 
+# root to set up /etc, then normal users don't
+# have permission to read links to the config files in /etc which point 
+# to inside of the root home dir. Not the most portable but...
+    JJR_ENV_DIR="jjr-environment"
+    export JJR_ENV="/home/jorussel/$JJR_ENV_DIR"
+    echo "Setting JJR_ENV to $JJR_ENV"
+    export JJR_BIN="$JJR_ENV/bin"
+    echo "Setting JJR_BIN to $JJR_ENV/bin"
+fi
+
+dohelp()
+{
+    cat <<EOF
+USAGE
+
+     $0 [-root]
+
+    Links Files from your environment directory to your home directory or
+    the system root directory.
+
+HOME DIRECTORY LINKUP
+
+    When used without any arguments, will link files from your environment
+    directory (\$HOME/$JJR_ENV_DIR) to your home directory.
+
+    Any files or directories immediately under
+    \$HOME/$JJR_ENV_DIR/home will be soft-linked into your home
+    directory.  Any directories under \$HOME/$JJR_ENV_DIR/template
+    will be created if they do not already exist.
+
+    Existing copies of files to be linked will be removed.
+
+SPECIAL FILES
+
+    The special file \$HOME/$JJR_ENV_DIR/etc/nautilus-bookmarks.xml
+    will be linked to \$HOME/.nautilus/bookmarks.xml
+
+ROOT LINKUP
+
+    When used with the -root argument, will link files from your
+    environment directory to the systems root directory.  This must be
+    run as root to have correct permissions
+
+    This will linkup two sets of files, those in the directory
+    \$HOME/$JJR_ENV/root and also those in the directory
+    \$HOME/$JJR_ENV/root-\`hostname\`, to allow for machine
+    specific files to exist.
+
+    Any directories in this tree that need to be created will be
+    created, then files are linked to the source file.
+
+    The exception to this rule is that if the sticky bit is set (chmod
+    +t <file>) on a file, the file is not linked, instead it is
+    copied, and then the sticky bit is turned off.
+
+EOF
+}
+
+dorootdir()
+{
+    echo "Creating root dir from template in $1"
+    rootdir=$1
+    # create the root directory structure
+    for dir in `cd $rootdir ; find . -type d` ; do
+	[ -d /$dir ] || ${MKDIR} -p /$dir
+    done
+    for file in `cd $rootdir ; find . -type f` ; do
+	#rm -f /$file
+	# backup original if we haven't backed up before and the file
+	# there isn't already a symlink.  No point backing up our
+	# own symlink.
+	if [ -e /$file ] && [ ! -e /$file.orig ] && [ ! -h /$file ] ; then
+	    mv /$file /$file.orig
+	fi
+
+	if [ -k $rootdir/${file#./} ] ; then
+	# check for sticky bit files to copy instead of link
+	    cp $rootdir/${file#./} /$file
+	    chmod -t /$file
+	else
+	    ln -sf $rootdir/${file#./} /$file
+	fi
+    done
+}
+
+if [ "$1" = "-help" ] ; then
+    dohelp
+    exit 0
+fi
+
+link_home_dot_files()
+{
+    echo "Linking home directory dot files"
+
+# so we can make relative links
+    cd $HOME
+    for LINK in `ls -A "$JJR_ENV/home/"`
+    do
+
+        [ -e $HOME/$LINK ] && rm -vr $HOME/$LINK
+
+  # the ${JJR_ENV#${HOME}/} part strips off the $HOME part of $JJR_ENV so that we can
+  # create relative symlinks. requires cd $HOME from above.
+        ln -sf "${JJR_ENV#${HOME}/}/home/$LINK"
+    done
+}
+
+update_user_crontab()
+{
+    echo "Updating ${USER}'s crontab"
+    if [ "$USER" = "root" ] || [ $UID = 0 ] ; then
+        echo "Performing root specific crontab steps"
+        [ -r $JJR_ENV/etc/crontabs/crontab-${HOSTNAME%%.*}-root ] && crontab $JJR_ENV/etc/crontabs/crontab-${HOSTNAME%%.*}-root
+
+        [ -d $JJR_ENV/roots/root-all ] && dorootdir $JJR_ENV/roots/root-all
+        [ -d $JJR_ENV/roots/root-${HOSTNAME%%.*} ] && dorootdir $JJR_ENV/roots/root-${HOSTNAME%%.*}
+        
+#fcron has a special case - it has to be owned by root:cron
+#with special permissions
+    #[ -h /etc/fcron/fcron.conf ] && chown root:cron /etc/fcron/fcron.conf
+
+#!!!!!!! dont' do this on ubuntu as it borks the sudo access and you can't
+# ever be root.
+# sudoers has to be a regular file so it has the sticky bit set so
+# it will be copied instead of linked. We also have to
+# give it special permissions.
+#     if [ -e "$JJR_ENV/etc/sudoers" ] ; then
+# 	chown root:root /etc/sudoers && 
+# 	chmod 440 /etc/sudoers
+#     fi
+    else
+        echo "Updating user crontabs"
+        [ -r $JJR_ENV/etc/crontabs/crontab-${HOSTNAME%%.*} ] && crontab $JJR_ENV/etc/crontabs/crontab-${HOSTNAME%%.*} 
+    fi
+    echo "Creating cron tmp directories"
+#[ ! -d ~/tmp ] && ${MKDIR} ~/tmp
+    [ ! -d /tmp/cronstatus-$USER ] && ${MKDIR} /tmp/cronstatus-$USER
+
+}
+
+# for DIR in $JJR_ENV/template/*
+#  do
+#   dirbase=${DIR##*/}
+#   [ -d $HOME/$dirbase ] || cp -R $DIR $HOME/$dirbase
+#  done
+
+
+populate_nautilus_scripts()
+{
+	if ! which nautilus ; then
+		echo "nautilus not found in path, skipping nautilus script installation"
+		return
+	fi
+
+#link up nautilus scripts
+    echo "Populating nautilus scripts"
+    NAUTILUS_SCRIPT_DIR="$HOME/.gnome2/nautilus-scripts"
+    [ ! -d $NAUTILUS_SCRIPT_DIR ] && ${MKDIR} -p $NAUTILUS_SCRIPT_DIR
+    ln -sf "$JJR_BIN/email-file" "$NAUTILUS_SCRIPT_DIR/Attach to email"
+    ln -sf "$JJR_BIN/jjr-terminal" "$NAUTILUS_SCRIPT_DIR/Open Terminal Here"
+    ln -sf "$JJR_BIN/jjr-gconf-set-background" "$NAUTILUS_SCRIPT_DIR/Set as Desktop Background"
+    ln -sf "$JJR_BIN/toggle-mount" "$NAUTILUS_SCRIPT_DIR/Toggle Mount Point"
+    ln -sf "$JJR_BIN/jjr-copy-to-home" "$NAUTILUS_SCRIPT_DIR/Copy to Home Computer"
+    ln -sf "$JJR_BIN/jjr-gnome-search" "$NAUTILUS_SCRIPT_DIR/Search"
+    ln -sf "$JJR_BIN/mount-iso" "$NAUTILUS_SCRIPT_DIR/Mount ISO Image"
+    ln -sf "$JJR_BIN/xinerama-background-maker" "$NAUTILUS_SCRIPT_DIR/Make Xinerama Background (2 Images)"
+}
+
+link_emacs()
+{
+    echo "Linking emacs files"
+
+
+# to make relative links work
+    cd $HOME
+	# this should already exist as a symlink after running link_dot_files
+    EMACS_HOME=".emacs.d"
+    [ -r $EMACS_HOME/.emacs ] && ln -sf $EMACS_HOME/.emacs
+    [ -r $EMACS_HOME/init/.gnus ]  && ln -sf $EMACS_HOME/init/.gnus 
+    [ -r $EMACS_HOME/init/.newsrc ]  && ln -sf $EMACS_HOME/init/.newsrc 
+    [ -r $EMACS_HOME/init/.newsrc.eld ] &&  ln -sf $EMACS_HOME/init/.newsrc.eld 
+}
+
+set_gconf_defaults()
+{
+	if ! which gconftool-2 ; then
+		echo "gconftool-2 not found in path, skipping gconf config"
+		return
+	fi
+
+    echo "Setting gconf defaults"
+
+# Nautilus settings
+# Clean icons off desktop
+    gconftool-2 --set --type Boolean /apps/nautilus/desktop/computer_icon_visible false
+    gconftool-2 --set --type Boolean /apps/nautilus/desktop/home_icon_visible false
+    gconftool-2 --set --type Boolean /apps/nautilus/desktop/trash_icon_visible false
+    gconftool-2 --set --type Boolean /apps/nautilus/preferences/always_use_browser true
+    gconftool-2 --set --type String /apps/nautilus/preferences/default_folder_viewer "list_view"
+    gconftool-2 --set --type Boolean /apps/nautilus/preferences/desktop_is_home_dir true
+    gconftool-2 --set --type Boolean /apps/nautilus/preferences/enable_delete true
+# unixy permission dialog
+    gconftool-2 --set --type Boolean /apps/nautilus/preferences/show_advanced_permissions true
+    # emacs-like text editing
+    gconftool-2 --set --type string /desktop/gnome/interface/gtk_key_theme Emacs
+}
+
+#############################################################
+##
+## main execution of functions above
+##
+############################################################# 
+link_home_dot_files
+link_emacs
+populate_nautilus_scripts
+set_gconf_defaults

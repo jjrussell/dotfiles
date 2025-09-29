@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# goes along with jjr-env-setup
+# Mostly I have tried to use symlinks to google drive to avoid this but some apps like jetbrains and cubase don't work well with symlinked Prefs
+# So we instead have to be able to back things up and restore them. LAME
+
+
+JJR_DRIVE="${HOME}/.jjr-drive"
+CONFIG_DIR="${JJR_DRIVE}/config/osx"
+
+pushd $CONFIG_DIR || exit 1
+
+BACKUP_PREFIXES=(
+    # music
+    "Library/Preferences/Cubase 12"
+    "Library/Preferences/Cubase 13"
+    "Library/Preferences/Application Files" # cubase profiles
+    "Library/Application Support/Steinberg"
+    "Library/Preferences/Groove Agent"
+    "Library/Preferences/HALion Sonic SE"
+    "Library/Preferences/com.izotope."
+    "Library/Preferences/com.ikmultimedia."
+    "Library/Preferences/com.native-instruments."
+    "Library/Preferences/com.orchestraltools.sinebrowser.local.helper.plist"
+    "Library/Preferences/com.steinberg."
+    "Library/Preferences/org.musescore."
+    "Library/Application Support/MuseScore"
+    "Library/Application Support/Ableton"
+    "Library/Application Support/Native Instruments"
+    "Library/Application Support/Orchestral Tools"
+    "Library/Preferences/KORG KONTROL"
+    "Library/Preferences/com.elgato.CameraHub.plist"
+    "Library/Preferences/com.idagio.desktop.plist"
+    "Library/Preferences/com.intelliscapesolutions.caffeine.plist"
+    "Library/Preferences/com.jetbrains."
+    "Library/Preferences/org.hammerspoon.Hammerspoon.plist"
+    "Library/Preferences/us.zoom."
+    "Library/Application Support/JetBrains/IdeaIC"    
+    "Library/Application Support/Elgato"
+    "Library/Application Support/iStat Menus"
+)
+
+
+for BACKUP_PREFIX in "${BACKUP_PREFIXES[@]}" ; do
+    echo "Backing up ${BACKUP_PREFIX}* to ${CONFIG_DIR}"
+    TARGET_DIR="${CONFIG_DIR}/$(dirname "${BACKUP_PREFIX}")"
+    mkdir -pv "${TARGET_DIR}" || exit 1
+    rsync -a --exclude 'Cache' -a "${HOME}/${BACKUP_PREFIX}"* "${TARGET_DIR}"  || exit 1
+done
+
+popd > /dev/null  || exit 1

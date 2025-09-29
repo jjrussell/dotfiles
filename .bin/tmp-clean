@@ -1,0 +1,12 @@
+#!/bin/bash
+
+rm -f /tmp/*.tar*
+rm -f /tmp/*.tgz
+rm -f /tmp/*.tbz2
+rm -f /tmp/*.tmp
+rm -f /tmp/*.pdf
+rm -f /tmp/*.log
+rm -f /tmp/*.smil
+rm -f /tmp/*.exe
+
+find . -ctime +30 -o -atime +30 -o -mtime +30 -exec rm -r {} \;

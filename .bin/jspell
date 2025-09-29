@@ -1,0 +1,66 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+# checkspelling - check the spelling of a word
+my $spell_program="";
+if ( system ("which aspell > /dev/null 2>&1") == 0)
+{
+    $spell_program="aspell -a";
+}
+elsif ( system ("which ispell > /dev/null 2>&1") == 0)
+{
+    $spell_program="ispell -a";
+}
+else
+{
+    print("Neither ispell nor aspell were found on your system.\n");
+    print("Can't check spelling.\n");
+    exit 1;
+}
+
+if ( @ARGV <  1 )
+{
+
+    $0 =~ m{([^/]*$)};
+    my $name = $1;
+    print "Usage: $name word or words\n";
+    exit 1
+}
+
+my $words = join (' ', @ARGV);
+
+my $output = `echo $words | $spell_program`;
+my $word = "";
+my $retval = 0; # if any words are misspelled, return > 0
+while ($output =~ /(.+)/g)
+{
+    $word = $1;
+    if ($word =~ /^&/)
+    {
+	$word =~ /& (\w+).*: (.*)/;
+	print "Unkown word: '$1' \n";
+	print "Suggestions: $2 \n";
+	print "---------------------------\n";
+	$retval = 1;
+    }
+    elsif ($word =~ /^#/)
+    {
+	$word =~ /# (\w+)/;
+	print "Unknown word: '$1'\n";
+	print "No suggestions!\n";
+	print "---------------------------\n";
+	$retval = 1;
+    }
+    elsif ($word =~ /^[\*|@]/)
+    {
+	#beginning output and correctly spelled word. Just ignore
+    }
+    else
+    {
+	print "Unhandled output\n$word\n";
+	$retval = 2;
+    }
+}
+exit $retval;
