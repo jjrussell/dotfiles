@@ -77,7 +77,7 @@ hs.hotkey.bind({"alt", "shift"}, '6', launch_fn("Granola"))
 hs.hotkey.bind({"alt"}, '7', launch_fn("Google Chrome"))
 -- firefox starts in safe mode if alt is pressed on launch so this happens because I have my key repeat set really fast
 hs.hotkey.bind({"alt", "shift"}, '8', launch_fn("Brave Browser"))
-hs.hotkey.bind({"alt"}, '8', launch_fn("Dia"))
+hs.hotkey.bind({"alt"}, '8', launch_fn("Comet"))
 hs.hotkey.bind({"alt"}, '9', launch_fn("Cubase 14"))
 hs.hotkey.bind({"alt", "shift"}, '9', launch_fn("Kontakt 7"))
 hs.hotkey.bind({"alt"}, '0', launch_fn("MuseScore 4"))
