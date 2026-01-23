@@ -92,11 +92,6 @@ hs.hotkey.bind({"control", "shift", "command"}, 'q',
       os.execute('pmset sleepnow') 
 end)
 
-hs.hotkey.bind({"control", "shift", "command"}, 'q',
-   function() 
-      os.execute('pmset sleepnow') 
-end)
-
 -- puts display to sleep
 hs.hotkey.bind(mash, 'l', 
                function() 
@@ -104,6 +99,28 @@ hs.hotkey.bind(mash, 'l',
 
                end
 )
+
+hs.hotkey.bind({"control", "shift", "command"}, '1',
+   function()
+      log.i('Output set to MacBook Pro Speakers')
+      local success, reason, code = os.execute('/opt/homebrew/bin/SwitchAudioSource -t output -s "MacBook Pro Speakers"')
+      --log.i("Success: " .. success .. " Reason: " .. reason)
+end)
+hs.hotkey.bind({"control", "shift", "command"}, '2',
+   function()
+      log.i('Output set to CalDigit TS4 Audio - Front')
+      local success, reason, code = os.execute('/opt/homebrew/bin/SwitchAudioSource -t output -s "CalDigit TS4 Audio - Front"')
+      --log.i("Success: " .. success .. " Reason: " .. reason)
+end)
+hs.hotkey.bind({"control", "shift", "command"}, '3',
+   function()
+      log.i('Output set to Vocaster One USB')
+      local success, reason, code = os.execute('/opt/homebrew/bin/SwitchAudioSource -t output -s "Vocaster One USB"')
+	 --log.i("Success: " .. success .. " Reason: " .. reason)
+end)
+
+
+
 -- Just use cmd-ctrl-Q on the mac
 -- hs.hotkey.bind(mashshift, 'l', 
 --                function() 
