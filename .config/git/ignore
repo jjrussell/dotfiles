@@ -4,6 +4,13 @@ TAGS
 slugforge*.json.gradle-enterprise/
 .gradle-enterprise/
 
+# Editor backup files
+*~
+*.~undo-tree~
+
+# Claude Code config
+.claude/
+
 
 
 *~
