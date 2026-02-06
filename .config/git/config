@@ -1,0 +1,169 @@
+[user]
+        name = John Russell
+        email = jorussell@hubspot.com
+	signingkey = ~/.ssh/id_rsa.pub
+[core]
+        editor = /usr/bin/vim
+#	excludesfile = /Users/jorussell/.gitignore_global
+	hooksPath = /Users/jorussell/.git_hooks
+        whitespace = -trailing-space,-indent-with-non-tab,-tab-in-indent
+	# Make `git rebase` safer on macOS
+	# More info: <http://www.git-tower.com/blog/make-git-rebase-safe-on-osx/>
+	trustctime = false
+
+	# Prevent showing files whose names contain non-ASCII symbols as unversioned.
+	# http://michael-kuehnel.de/git/2014/11/21/git-mac-osx-and-german-umlaute.html
+	precomposeunicode = false
+
+	# Speed up commands involving untracked files such as `git status`.
+	# https://git-scm.com/docs/git-update-index#_untracked_cache
+	untrackedCache = true
+#[difftool]
+#       external = jjr-gitdiff
+#       prompt = false
+[diff]
+#       guitool = jjr-gitdiff
+        tool = opendiff
+        compactionHeuristic = true
+[color]
+        ui = auto
+#[merge]
+#  tool = jjr-gitdiff
+#[mergetool "jjr-gitdiff"]
+#  cmd = jjr-gitdiff "$BASE" "$LOCAL" "$REMOTE" "$MERGED"
+#  trustExitCode = false
+[push]
+        default = tracking
+[github]
+        user = jjrussell
+[alias]
+        #View abbreviated SHA, description, and history graph of the latest 20 commits
+        l = log --pretty=oneline -n 20 --graph --abbrev-commit
+
+        # Show the diff between the latest commit and the current state
+        d = !"git diff-index --quiet HEAD -- || clear; git --no-pager diff --patch-with-stat"
+
+        lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
+[difftool "sourcetree"]
+        cmd = opendiff \"$LOCAL\" \"$REMOTE\"
+        path = 
+[mergetool "sourcetree"]
+        cmd = /Applications/SourceTree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+        trustExitCode = true
+
+ 	# lifted from https://git.hubteam.com/gist/maxiak/a365f3f0b420d16dea9bb860167c4836#file-gitconfig-L206-L208
+	# View abbreviated SHA, description, and history graph of the latest 20 commits
+	l = log --pretty=oneline -n 20 --graph --abbrev-commit
+
+	# View the current working tree status using the short format
+	s = status -s
+
+	# Show the diff between the latest commit and the current state
+	d = !"git diff-index --quiet HEAD -- || clear; git --no-pager diff --patch-with-stat"
+
+	# `git di $number` shows the diff between the state `$number` revisions ago and the current state
+	di = !"d() { git diff --patch-with-stat HEAD~$1; }; git diff-index --quiet HEAD -- || clear; d"
+
+	# Pull in remote changes for the current repository and all its submodules
+	p = !"git pull; git submodule foreach git pull origin master"
+
+	# Clone a repository including all submodules
+	c = clone --recursive
+
+	# Commit all changes
+	ca = !git add -A && git commit -av
+
+	# Switch to a branch, creating it if necessary
+	go = "!f() { git checkout -b \"$1\" 2> /dev/null || git checkout \"$1\"; }; f"
+
+	# Show verbose output about tags, branches or remotes
+	tags = tag -l
+	branches = branch -a
+	remotes = remote -v
+
+	# List aliases
+	aliases = config --get-regexp alias
+
+	# Amend the currently staged files to the latest commit
+	amend = commit --amend --reuse-message=HEAD
+
+	# Credit an author on the latest commit
+	credit = "!f() { git commit --amend --author \"$1 <$2>\" -C HEAD; }; f"
+
+	# Interactive rebase with the given number of latest commits
+	reb = "!r() { git rebase -i HEAD~$1; }; r"
+
+	# Remove the old tag with this name and tag the latest commit with it.
+	retag = "!r() { git tag -d $1 && git push origin :refs/tags/$1 && git tag $1; }; r"
+
+	# Find branches containing commit
+	#fb = "!f() { git branch -a --contains $1; }; f"
+
+	# Find tags containing commit
+	ft = "!f() { git describe --always --contains $1; }; f"
+
+	# Find commits by source code
+	fc = "!f() { git log --pretty=format:'%C(yellow)%h  %Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short -S$1; }; f"
+
+	# Find commits by commit message
+	fm = "!f() { git log --pretty=format:'%C(yellow)%h  %Cblue%ad  %Creset%s%Cgreen  [%cn] %Cred%d' --decorate --date=short --grep=$1; }; f"
+
+	# Remove branches that have already been merged with master
+	# a.k.a. ‘delete merged’
+	dm = "!git branch --merged | grep -v '\\*' | xargs -n 1 git branch -d"
+
+	# List contributors with number of commits
+	contributors = shortlog --summary --numbered
+
+	# Merge GitHub pull request on top of the current branch or,
+	# if a branch name is specified, on top of the specified branch
+	mpr = "!f() { \
+		declare currentBranch=\"$(git symbolic-ref --short HEAD)\"; \
+		declare branch=\"${2:-$currentBranch}\"; \
+		if [ $(printf \"%s\" \"$1\" | grep '^[0-9]\\+$' > /dev/null; printf $?) -eq 0 ]; then \
+			git fetch origin refs/pull/$1/head:pr/$1 && \
+			git checkout -B $branch && \
+			git rebase $branch pr/$1 && \
+			git checkout -B $branch && \
+			git merge pr/$1 && \
+			git branch -D pr/$1 && \
+			git commit --amend -m \"$(git log -1 --pretty=%B)\n\nCloses #$1.\"; \
+		fi \
+	}; f"
+	put = push origin HEAD
+	putm = push maxiak HEAD
+        ci = commit --no-verify
+        fp = "!f() { python3 /Users/maxiak/Documents/mike-scripts/autocommit.py; }; f"
+        fb = "!f() { git commit -a --no-verify -m fix-build && git push origin HEAD; }; f"
+        wip = commit -a -m wip --no-verify
+	#go = "!f() { git checkout -b \"$1\" 2> /dev/null || git checkout \"$1\"; }; f"
+        sci = "!f() { mvn -nsu com.github.ekryd.sortpom:sortpom-maven-plugin:sort -Dsort.keepBlankLines -Dsort.sortDependencies=scope,groupId,artifactId -Dsort.createBackupFile=false -Dsort.keepBlankLines && git commit -a; }; f"
+
+[branch]
+        # this makes git pull do a rebase instead of a merge
+        autosetuprebase = always
+[url "git@github.com:"]
+        insteadOf = https://github.com/
+[rerere]
+        enabled = true
+[hub]
+        host = git.hubteam.com
+[apply]
+
+	# Detect whitespace errors when applying a patch
+	whitespace = fix
+[pull]
+	rebase = true
+[gpg]
+	format = ssh
+[commit]
+	gpgsign = true
+[credential "https://git.hubteam.com"]
+	provider = github
+[credential]
+	helper = 
+	helper = /usr/local/share/gcm-core/git-credential-manager
+[credential "https://dev.azure.com"]
+	useHttpPath = true
+[init]
+	defaultBranch = master

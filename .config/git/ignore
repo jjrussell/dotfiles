@@ -1,0 +1,78 @@
+*~
+.DS_Store
+TAGS
+slugforge*.json.gradle-enterprise/
+.gradle-enterprise/
+
+
+
+*~
+*.swp
+*.orig
+.DS_Store
+
+# Python artifacts
+*.pyc
+*.egg-info
+.pydevproject
+
+# Frontend
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Generated files
+bin/
+target/
+
+# VSCode files
+.vscode/
+
+# Eclipse files
+.classpath
+.project
+.settings
+.factorypath
+.checkstyle
+
+# IntelliJ files
+.idea
+*.iml
+
+# Gradle
+.mvn/.gradle-enterprise/.develocity/
+.develocity/
+# added by nex
+.venv
+# added by nex
+venv/
+# added by nex
+*.egg
+# added by nex
+*.egg-info/
+# added by nex
+.ipynb_checkpoints
+# added by nex
+.coverage
+# added by nex
+.coverage.*
+# added by nex
+nosetests.xml
+# added by nex
+.Python
+# added by nex
+pip-log.txt
+# added by nex
+dist/
+# added by nex
+*.hprof
+# added by nex
+hadoop-keytabs/
+# added by nex
+hadoop-krb5-configs/
+
+# Managed by nex.claude_code
+**/.claude/settings.local.json
+
+# Managed by nex.claude_code
+**/.claude/rules/managed
