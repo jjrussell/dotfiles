@@ -1,0 +1,8 @@
+{
+  "alfredsnippet" : {
+    "snippet" : "var aa = document.querySelectorAll(\"input[type=checkbox]\");\n    for (var i = 0; i < aa.length; i++){\n        aa[i].checked = true;\n    }",
+    "uid" : "C4D29825-7321-4F75-9925-4ED5949D6F49",
+    "name" : "JS Check all checkboxes",
+    "keyword" : ";jsch"
+  }
+}

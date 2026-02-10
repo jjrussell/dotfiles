@@ -50,4 +50,3 @@ export PATH=$PATH:$HOME/bin/traveling-tjsh
 
 # Added by nex: https://git.hubteam.com/HubSpot/nex
 [ -e ~/.hubspot/shellrc ] && . ~/.hubspot/shellrc
-

@@ -1,0 +1,8 @@
+{
+  "alfredsnippet" : {
+    "snippet" : "window.localStorage.URL_REWRITE = JSON.stringify([[\"(https?:\/\/)app.hubspotqa.com\/api\/(automationp.*)\",\"$1local.hubspotqa.com\/$2\"]])",
+    "uid" : "4C367C40-1BA0-4E4E-8D9B-AF7853E33C57",
+    "name" : "url rewrite",
+    "keyword" : ";url"
+  }
+}

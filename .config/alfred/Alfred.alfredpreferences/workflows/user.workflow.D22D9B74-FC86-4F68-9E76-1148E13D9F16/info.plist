@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>bundleid</key>
+	<string></string>
+	<key>connections</key>
+	<dict>
+		<key>7DD3BDE5-A157-42E5-9376-F681FB50A4EE</key>
+		<array/>
+	</dict>
+	<key>createdby</key>
+	<string>Yuval Shavit</string>
+	<key>description</key>
+	<string>Epoch time, but readable.</string>
+	<key>disabled</key>
+	<false/>
+	<key>name</key>
+	<string>epoch time</string>
+	<key>objects</key>
+	<array>
+		<dict>
+			<key>config</key>
+			<dict>
+				<key>argumenttype</key>
+				<integer>0</integer>
+				<key>escaping</key>
+				<integer>127</integer>
+				<key>keyword</key>
+				<string>e</string>
+				<key>script</key>
+				<string>import time
+
+then = int({query})
+now = time.time()
+assuming_ms = False
+if (then &gt; (now * 100)):
+  then /= 1000
+  assuming_ms = True
+elapsed = now - then
+
+then_str = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(then))
+
+assuming_ms_str = ''
+if assuming_ms:
+  assuming_ms_str = ' (assuming input in ms)'
+
+print """&lt;?xml version="1.0"?&gt;&lt;items&gt;
+  &lt;item uid="desktop" arg="~/Desktop" valid="NO" type="file"&gt;
+    &lt;title&gt;Local time%s: %s&lt;/title&gt;
+  &lt;/item&gt;
+  &lt;item&gt;
+    &lt;title&gt;Seconds elapsed: %s&lt;/title&gt;
+  &lt;/item&gt;
+  &lt;item&gt;
+    &lt;title&gt;Minutes elapsed: %s&lt;/title&gt;
+  &lt;/item&gt;
+  &lt;item&gt;
+    &lt;title&gt;Hours elapsed: %s&lt;/title&gt;
+  &lt;/item&gt;
+  &lt;item&gt;
+    &lt;title&gt;Days elapsed: %s&lt;/title&gt;
+  &lt;/item&gt;
+&lt;/items&gt;""" % (assuming_ms_str,
+               then_str,
+               elapsed,
+               elapsed / 60,
+               elapsed/60/60,
+               elapsed/60/60/24)</string>
+				<key>title</key>
+				<string>Epoch time</string>
+				<key>type</key>
+				<integer>3</integer>
+				<key>withspace</key>
+				<true/>
+			</dict>
+			<key>type</key>
+			<string>alfred.workflow.input.scriptfilter</string>
+			<key>uid</key>
+			<string>7DD3BDE5-A157-42E5-9376-F681FB50A4EE</string>
+			<key>version</key>
+			<integer>0</integer>
+		</dict>
+	</array>
+	<key>readme</key>
+	<string>Enter in epoch time, in either seconds or milliseconds. It’ll show you what time that represents (in your local timezone), as well as how long ago that time was in various units.</string>
+	<key>uidata</key>
+	<dict>
+		<key>7DD3BDE5-A157-42E5-9376-F681FB50A4EE</key>
+		<dict>
+			<key>ypos</key>
+			<real>40</real>
+		</dict>
+	</dict>
+	<key>webaddress</key>
+	<string></string>
+</dict>
+</plist>

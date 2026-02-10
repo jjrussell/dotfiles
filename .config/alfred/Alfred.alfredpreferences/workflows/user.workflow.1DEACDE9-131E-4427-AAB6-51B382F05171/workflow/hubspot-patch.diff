@@ -1,0 +1,281 @@
+diff --git a/workflow/background.py b/workflow/background.py
+old mode 100644
+new mode 100755
+index ba5c52a..a45d532
+--- a/workflow/background.py
++++ b/workflow/background.py
+@@ -233,7 +233,7 @@ def run_in_background(name, args, **kwargs):
+         _log().debug('[%s] command cached: %s', name, argcache)
+ 
+     # Call this script
+-    cmd = ['/usr/bin/python', __file__, name]
++    cmd = [sys.executable, __file__, name]
+     _log().debug('[%s] passing job to background runner: %r', name, cmd)
+     retcode = subprocess.call(cmd)
+ 
+diff --git a/workflow/update.py b/workflow/update.py
+old mode 100644
+new mode 100755
+index ffc6353..dfa0a35
+--- a/workflow/update.py
++++ b/workflow/update.py
+@@ -32,12 +32,13 @@ import re
+ import subprocess
+ 
+ import workflow
+-import web
++from workflow import PasswordNotFound
+ 
+ # __all__ = []
+ 
+ 
+-RELEASES_BASE = 'https://api.github.com/repos/{}/releases'
++RELEASES_BASE = 'https://git.hubteam.com/api/v3/repos/{0}/releases'
++RELEASE_BASE = 'https://git.hubteam.com/api/v3/repos/{0}/releases/assets/{1}'
+ match_workflow = re.compile(r'\.alfred(\d+)?workflow$').search
+ 
+ _wf = None
+@@ -47,7 +48,10 @@ def wf():
+     """Lazy `Workflow` object."""
+     global _wf
+     if _wf is None:
+-        _wf = workflow.Workflow()
++        lib_path = '/'.join(os.path.abspath(__file__).split('/')[:-2]) + '/lib'
++        _wf = workflow.Workflow(libraries=[lib_path])
++        global requests
++        import requests
+     return _wf
+ 
+ 
+@@ -58,6 +62,7 @@ class Download(object):
+     .. versionadded: 1.37
+ 
+     Attributes:
++        asset_id (int): asset id
+         url (str): URL of workflow file.
+         filename (str): Filename of workflow file.
+         version (Version): Semantic version of workflow.
+@@ -70,7 +75,7 @@ class Download(object):
+     @classmethod
+     def from_dict(cls, d):
+         """Create a `Download` from a `dict`."""
+-        return cls(url=d['url'], filename=d['filename'],
++        return cls(asset_id=d['asset_id'], url=d['url'], filename=d['filename'],
+                    version=Version(d['version']),
+                    prerelease=d['prerelease'])
+ 
+@@ -115,8 +120,8 @@ class Download(object):
+ 
+                 ext = m.group(0)
+                 dupes[ext] = dupes[ext] + 1
+-                dls.append(Download(url, filename, version,
+-                                    release['prerelease']))
++                dls.append(
++                    Download(asset['id'], url, filename, version, release['prerelease']))
+ 
+             valid = True
+             for ext, n in dupes.items():
+@@ -132,10 +137,11 @@ class Download(object):
+         downloads.sort(reverse=True)
+         return downloads
+ 
+-    def __init__(self, url, filename, version, prerelease=False):
++    def __init__(self, asset_id, url, filename, version, prerelease=False):
+         """Create a new Download.
+ 
+         Args:
++            asset_id (int): asset id
+             url (str): URL of workflow file.
+             filename (str): Filename of workflow file.
+             version (Version): Version of workflow.
+@@ -146,6 +152,7 @@ class Download(object):
+         if isinstance(version, basestring):
+             version = Version(version)
+ 
++        self.asset_id = asset_id
+         self.url = url
+         self.filename = filename
+         self.version = version
+@@ -162,12 +169,13 @@ class Download(object):
+     @property
+     def dict(self):
+         """Convert `Download` to `dict`."""
+-        return dict(url=self.url, filename=self.filename,
++        return dict(asset_id=self.asset_id, url=self.url, filename=self.filename,
+                     version=str(self.version), prerelease=self.prerelease)
+ 
+     def __str__(self):
+         """Format `Download` for printing."""
+-        u = ('Download(url={dl.url!r}, '
++        u = ('Download(asset_id={dl.asset_id!r}, '
++             'url={dl.url!r}, '
+              'filename={dl.filename!r}, '
+              'version={dl.version!r}, '
+              'prerelease={dl.prerelease!r})'.format(dl=self))
+@@ -180,7 +188,8 @@ class Download(object):
+ 
+     def __eq__(self, other):
+         """Compare Downloads based on version numbers."""
+-        if self.url != other.url \
++        if self.asset_id != other.asset_id \
++                or self.url != other.url \
+                 or self.filename != other.filename \
+                 or self.version != other.version \
+                 or self.prerelease != other.prerelease:
+@@ -346,7 +355,7 @@ class Version(object):
+         return "Version('{0}')".format(str(self))
+ 
+ 
+-def retrieve_download(dl):
++def retrieve_download(dl, repo):
+     """Saves a download to a temporary file and returns path.
+ 
+     .. versionadded: 1.37
+@@ -361,14 +370,20 @@ def retrieve_download(dl):
+     if not match_workflow(dl.filename):
+         raise ValueError('attachment not a workflow: ' + dl.filename)
+ 
+-    path = os.path.join(tempfile.gettempdir(), dl.filename)
++    download_url = RELEASE_BASE.format(repo, dl.asset_id)
++    filename = re.sub(r'\.(alfred\d?workflow$)',
++                      '.alfredworkflow', dl.filename)
++
++    path = os.path.join(tempfile.gettempdir(), filename)
+     wf().logger.debug('downloading update from '
+                       '%r to %r ...', dl.url, path)
+ 
+-    r = web.get(dl.url)
++    r = requests.get(download_url, auth=update_auth(), headers={
++                     'Accept': 'application/octet-stream'})
+     r.raise_for_status()
+ 
+-    r.save_to_path(path)
++    with open(path, 'wb') as output:
++        output.write(r.content)
+ 
+     return path
+ 
+@@ -404,7 +419,7 @@ def get_downloads(repo):
+ 
+     def _fetch():
+         wf().logger.info('retrieving releases for %r ...', repo)
+-        r = web.get(url)
++        r = requests.get(url, auth=update_auth())
+         r.raise_for_status()
+         return r.content
+ 
+@@ -494,7 +509,7 @@ def check_update(repo, current_version, prereleases=False,
+     return False
+ 
+ 
+-def install_update():
++def install_update(repo):
+     """If a newer release is available, download and install it.
+ 
+     :returns: ``True`` if an update is installed, else ``False``
+@@ -518,7 +533,7 @@ def install_update():
+         wf().logger.info('no download information')
+         return False
+ 
+-    path = retrieve_download(Download.from_dict(dl))
++    path = retrieve_download(Download.from_dict(dl), repo)
+ 
+     wf().logger.info('installing updated workflow ...')
+     subprocess.call(['open', path])
+@@ -527,6 +542,36 @@ def install_update():
+     return True
+ 
+ 
++def update_auth():
++    try:
++        from requests import HTTPError
++        from hubspot import Auth
++        auth = Auth(wf())
++
++        try:
++            return auth.github()
++        except HTTPError, e:
++            try:
++                return auth.github(clear=True)
++            except HTTPError, e:
++                import sys
++                sys.exit(1)
++    except ImportError, e:
++        try:
++            username = wf().settings['user']
++        except KeyError:
++            username = None
++        try:
++            password = wf().get_password('github')
++        except PasswordNotFound:
++            password = None
++        if not username or not password:
++            import sys
++            wf().logger.error('error getting auth to update workflow')
++            sys.exit(0)
++        return (username, password)
++
++
+ if __name__ == '__main__':  # pragma: nocover
+     import sys
+ 
+@@ -535,7 +580,7 @@ if __name__ == '__main__':  # pragma: nocover
+     def show_help(status=0):
+         """Print help message."""
+         print('usage: update.py (check|install) '
+-              '[--prereleases] <repo> <version>')
++              '[--prereleases] <repo> <version> <alfred_version>')
+         sys.exit(status)
+ 
+     argv = sys.argv[:]
+@@ -546,19 +591,23 @@ if __name__ == '__main__':  # pragma: nocover
+         argv.remove('--prereleases')
+         prereleases = True
+ 
+-    if len(argv) != 4:
++    if len(argv) < 4:
+         show_help(1)
+ 
+     action = argv[1]
+     repo = argv[2]
+     version = argv[3]
++    if len(argv) > 4:
++        alfred_version = argv[4]
++    else:
++        alfred_version = None
+ 
+     try:
+ 
+         if action == 'check':
+-            check_update(repo, version, prereleases)
++            check_update(repo, version, prereleases, alfred_version)
+         elif action == 'install':
+-            install_update()
++            install_update(repo)
+         else:
+             show_help(1)
+ 
+diff --git a/workflow/workflow.py b/workflow/workflow.py
+old mode 100644
+new mode 100755
+index 2a057b0..9002fe5
+--- a/workflow/workflow.py
++++ b/workflow/workflow.py
+@@ -2330,7 +2330,7 @@ class Workflow(object):
+             update_script = os.path.join(os.path.dirname(__file__),
+                                          b'update.py')
+ 
+-            cmd = ['/usr/bin/python', update_script, 'check', repo, version]
++            cmd = [sys.executable, update_script, 'check', repo, version]
+ 
+             if self.prereleases:
+                 cmd.append('--prereleases')
+@@ -2369,7 +2369,7 @@ class Workflow(object):
+         update_script = os.path.join(os.path.dirname(__file__),
+                                      b'update.py')
+ 
+-        cmd = ['/usr/bin/python', update_script, 'install', repo, version]
++        cmd = [sys.executable, update_script, 'install', repo, version]
+ 
+         if self.prereleases:
+             cmd.append('--prereleases')

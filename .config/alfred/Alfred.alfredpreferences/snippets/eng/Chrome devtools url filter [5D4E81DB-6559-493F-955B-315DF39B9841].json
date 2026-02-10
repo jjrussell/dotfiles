@@ -1,0 +1,8 @@
+{
+  "alfredsnippet" : {
+    "snippet" : "\/(^(?!.*requestToken))\/ \/(^(?!.*hub-user))\/ \/(^(?!.*settings))\/ \/(^(?!.*jita-users))\/ \/(^(?!.*navconfig))\/ \/(^(?!.*notification-station))\/ \/(^(?!.*presence\\\/v1))\/ \/(^(?!.*usage-logging))\/",
+    "uid" : "5D4E81DB-6559-493F-955B-315DF39B9841",
+    "name" : "Chrome devtools url filter",
+    "keyword" : ";filter"
+  }
+}
