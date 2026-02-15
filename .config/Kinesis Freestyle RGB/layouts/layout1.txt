@@ -1,0 +1,12 @@
+[hk0]>[lspc]
+[hk1]>[vol-]
+[hk2]>[vol+]
+[hk3]>[mute]
+[hk4]>[mute]
+[caps]>[esc]
+[hk7]>[lspc]
+[hk8]>[lspc]
+[lspc]>[lalt]
+[lalt]>[lwin]
+[prnt]>[lwin]
+
