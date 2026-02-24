@@ -37,7 +37,7 @@
 			<dict>
 				<key>paths</key>
 				<array>
-					<string>~/Library/CloudStorage/GoogleDrive-jjrussell@gmail.com/My Drive/jjr-environment/home/.bin/paste-granola-notes.scpt</string>
+					<string>~/.dotfiles/.bin/paste-granola-notes.scpt</string>
 				</array>
 				<key>toggle</key>
 				<false/>
@@ -78,18 +78,20 @@
 		<key>264A09D9-DE34-403A-9524-C67F6525811D</key>
 		<dict>
 			<key>xpos</key>
-			<integer>50</integer>
+			<real>50</real>
 			<key>ypos</key>
-			<integer>50</integer>
+			<real>50</real>
 		</dict>
 		<key>74D406D6-3C19-449D-976C-4C3FC46DD4BB</key>
 		<dict>
 			<key>xpos</key>
-			<integer>295</integer>
+			<real>295</real>
 			<key>ypos</key>
-			<integer>45</integer>
+			<real>45</real>
 		</dict>
 	</dict>
+	<key>userconfigurationconfig</key>
+	<array/>
 	<key>webaddress</key>
 	<string></string>
 </dict>
