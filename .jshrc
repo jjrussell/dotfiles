@@ -442,6 +442,59 @@ if [ "$(uname)" = "Darwin" ] ; then
         [ -e $(brew --prefix)/etc/profile.d/z.sh ] && source $(brew --prefix)/etc/profile.d/z.sh
     fi
 
+    # my 2TB samples drive
+    # We find the physical disk by looking for the 2.0 TB GUID partition scheme
+    sample_physical_disk() {
+        diskutil list | \grep --color=never -B 2 "2.0 TB" | \grep --color=never "physical" | \grep --color=never -o 'disk[0-9]*' | head -n 1
+    }
+    
+    # Nightly shutdown of studio processes and specific disk ejection
+    goodnight() {
+        echo "--- Ending Studio Session ---"
+
+        # 1. Close Wispr Flow and Speech Services
+        # echo "Closing Wispr Flow & Speech Services..."
+        # pkill -f "Wispr Flow"
+        # pkill -f "wisperflow helper"
+
+        # 2. Clear background daemons
+        # echo "Cleaning up background daemons..."
+        # sudo killall studentd 2>/dev/null
+        # killall AddressBookSourceSync 2>/dev/null
+
+        local SAMPLE_DISK=$(sample_physical_disk)
+
+        # Nuke the Spotlight hang
+        echo "Resetting Spotlight processes holding on to disks preventing sleep..."
+        sudo killall mds 2>/dev/null
+        
+        # 3. Eject the Samples physical drive
+        if [ -n "${SAMPLE_DISK}" ]; then
+            echo "Ejecting Samples physical drive (${SAMPLE_DISK})..."
+            diskutil unmountDisk force ${SAMPLE_DISK}
+            diskutil eject ${SAMPLE_DISK}
+        else
+            echo "Samples drive not found."
+        fi
+
+        echo "Done. Run 'pmset -g assertions' in 30 seconds."
+    }
+
+    # Morning remount using the hardware identifier
+    morning() {
+        echo "--- Starting Studio Session ---"
+
+        local SAMPLE_DISK=$(sample_physical_disk)
+
+        if [ -n "${SAMPLE_DISK}" ]; then
+            echo "Remounting Samples drive (${SAMPLE_DISK})..."
+            diskutil mountDisk ${SAMPLE_DISK}
+        else
+            echo "Error: Could not find the 2.0 TB physical drive. Check the CalDigit hub connection."
+        fi
+    }
+   
+
 elif [ "$(uname)" = "SunOS" ] ; then
     # This makes color work on solaris
     TERM=dtterm
