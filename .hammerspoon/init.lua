@@ -41,12 +41,12 @@ end
 --------------------------------------------------------------
 local minimash = {"alt", "ctrl"}
 local mash = {"cmd", "alt", "ctrl"}
-local mashshift = {"ctrl", "alt", "shift"}
+local mashshift = {"cmd", "ctrl", "shift"}
 
 -- hs.hotkey.bind(mash, 'X', logger.show)
 -- hs.hotkey.bind(mash, "R", repl.open)
-hs.hotkey.bind(mash, "c", hs.console.getConsole) -- doesn't work
-hs.hotkey.bind(mash, "e", "Reloading Hammerspoon Config",  function()
+hs.hotkey.bind(mashshift, "c", hs.console.getConsole) -- doesn't work
+hs.hotkey.bind(mashshift, "e", "Reloading Hammerspoon Config",  function()
                   hs.alert.show("Reloaded Hammerspoon config")
 		  hs.reload()
 end		  
@@ -93,12 +93,21 @@ hs.hotkey.bind({"control", "shift", "command"}, 'q',
 end)
 
 -- puts display to sleep
-hs.hotkey.bind(mash, 'l', 
+hs.hotkey.bind(mashshift, 'l', 
                function() 
-                  os.execute('pmset displaysleepnow') 
+                  os.execute('pmset sleepnow') 
 
                end
 )
+
+-- claude code executive assistant 
+hs.hotkey.bind(mashshift, 'r', 
+               function() 
+                  os.execute('~/.bin/save-transcript.sh') 
+
+               end
+)
+
 
 hs.hotkey.bind({"control", "shift", "command"}, '1',
    function()

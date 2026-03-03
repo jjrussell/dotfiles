@@ -24,3 +24,5 @@
 .zlogout
 .tmux
 .config/github-copilot
+
+.bin/save-transcript.sh
