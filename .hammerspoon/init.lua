@@ -63,8 +63,8 @@ hs.hotkey.bind({"alt"}, '1', launch_fn("iTerm"))
 
 -- editors
 hs.hotkey.bind({"alt"}, '2', launch_fn("Emacs"))
-hs.hotkey.bind({"alt", "shift"}, '2', launch_fn("IntelliJ IDEA Community Edition"))
-hs.hotkey.bind({"ctrl", "shift"}, '2', launch_fn("IntelliJ IDEA Community Edition"))
+hs.hotkey.bind({"alt", "shift"}, '2', launch_fn("IntelliJ IDEA"))
+hs.hotkey.bind({"ctrl", "shift"}, '2', launch_fn("IntelliJ IDEA"))
 
 hs.hotkey.bind({"alt"}, '3', launch_fn("Finder"))
 hs.hotkey.bind({"alt"}, '4', launch_fn("Slack"))
