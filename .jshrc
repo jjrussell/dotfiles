@@ -297,9 +297,6 @@ pathmunge /etc/init.d after
 
 # I really want /usr/local/bin at the front of the path
 pathmunge /usr/local/bin before
-# mac ports, I use this less so put it before /sw as it only has what I want
-pathmunge /opt/local before
-
 
 # system sbins
 pathmunge /sbin after
@@ -313,7 +310,7 @@ pathmunge /usr/local/sbin after
 pathmunge ~/.local/bin before
 pathmunge ~/bin before
 pathmunge $JJR_BIN before
-pathmunge /Developer/usr/bin
+
 
 #############################################################
 ##
@@ -493,25 +490,6 @@ if [ "$(uname)" = "Darwin" ] ; then
             echo "Error: Could not find the 2.0 TB physical drive. Check the CalDigit hub connection."
         fi
     }
-   
-
-elif [ "$(uname)" = "SunOS" ] ; then
-    # This makes color work on solaris
-    TERM=dtterm
-    # But vi really doesn't like TERM=dtterm
-    alias vi='env TERM=xterm vi'
-    # A lot of binutils stuff is usually in here.
-    [ -d /usr/ccs/bin ] && pathmunge /usr/ccs/bin after
-    # Most standard X utils are usually here
-    [ -d /usr/openwin/bin ] && pathmunge /usr/openwin/bin after
-    # Don't use more -s as the man pager, it sucks. Use less if we have it.
-    if which less >/dev/null 2>&1 ; then
-        export PAGER=less
-    fi
-    # We have to set this because setting MANPATH at all on Solaris overrides the
-    # system default.  If we add our custom man pages above, we won't find
-    # any standard man pages without this.
-    manpathmunge /usr/share/man
 fi
 
 
@@ -678,30 +656,6 @@ ruby_check(){
         echo ""
         echo "All files have valid syntax"
     fi
-}
-
-#############################################################
-##
-## Go
-##
-#############################################################
-
-# because go get and go install doesn't fucking work at all
-
-
-[[ -s "$HOME/.gvm/scripts/gvm" ]] && source "$HOME/.gvm/scripts/gvm"
-export GOPATH=~/eng/src/go
-pathmunge $GOPATH/bin
-pathmunge $GOPATH/src/github.com/mitchellh/gox
-pathmunge $GOPATH/src/github.com/mitchellh/packer/pkg/darwin_386
-
-
-go_setup() {
-    go get golang.org/x/tools/cmd/...
-    go get github.com/rogpeppe/godef
-    go get -u github.com/dougm/goflymake
-    go get -u github.com/golang/lint/golint
-    go get -u github.com/nsf/gocode
 }
 
 
