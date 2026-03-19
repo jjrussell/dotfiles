@@ -398,15 +398,22 @@ EDITOR=$VISUAL
 # SunOS's which command returns 0 even on failure.  Morons.
 # and yes, we have to try which which first because sometimes that fails.
 __debug "Before dircolors"
+_dircolors_cmd=""
 if command -v dircolors > /dev/null 2>&1 ; then
+    _dircolors_cmd=dircolors
+elif command -v gdircolors > /dev/null 2>&1 ; then
+    _dircolors_cmd=gdircolors
+fi
+if [ -n "$_dircolors_cmd" ] ; then
     if [ -r "${HOME}/.dir_colors" ] ; then
-        eval `dircolors -b ${HOME}/.dir_colors`
+        eval `$_dircolors_cmd -b ${HOME}/.dir_colors`
     elif [ -r "/etc/DIR_COLORS" ] ; then
-        eval `dircolors -b /etc/DIR_COLORS`
+        eval `$_dircolors_cmd -b /etc/DIR_COLORS`
     else
-        eval `dircolors -b`
+        eval `$_dircolors_cmd -b`
     fi
 fi
+unset _dircolors_cmd
 __debug "After dircolors"
 ## Blessed silence
 ## bell supression also done in .inputrc 'set bell-style none'

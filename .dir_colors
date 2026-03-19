@@ -47,6 +47,14 @@ TERM vt100
 TERM dtterm
 TERM ansi
 TERM Eterm
+TERM xterm-256color
+TERM xterm-16color
+TERM screen-256color
+TERM screen-16color
+TERM tmux-256color
+TERM tmux
+TERM rxvt-256color
+TERM alacritty
 
 # EIGHTBIT, followed by '1' for on, '0' for off. (8-bit output)
 EIGHTBIT 1
@@ -59,21 +67,20 @@ EIGHTBIT 1
 # 30=black 31=red 32=green 33=yellow 34=blue 35=magenta 36=cyan 37=white
 # Background color codes:
 # 40=black 41=red 42=green 43=yellow 44=blue 45=magenta 46=cyan 47=white
-NORMAL 00           # global default, although everything should be something.
-FILE 00             # normal file
-DIR 01;34           # directory
-LINK 01;36          # symbolic link.  (If you set this to 'target' instead of a
-                    # numerical value, the color will match the file pointed to)
-FIFO 40;33          # pipe
-SOCK 01;35          # socket
-DOOR 01;35          # door
-BLK 40;33;01        # block device driver
-CHR 40;33;01        # character device driver
-ORPHAN 01;05;37;41  # orphaned syminks
-MISSING 01;05;37;41 # ... and the files they point to
+NORMAL 00                # global default, although everything should be something.
+FILE 00                  # normal file
+DIR 01;38;5;33           # directory - bold bright blue
+LINK 01;38;5;51          # symbolic link - bold bright cyan
+FIFO 38;5;220            # pipe - yellow
+SOCK 01;38;5;177         # socket - magenta
+DOOR 01;38;5;177         # door
+BLK 38;5;220;01          # block device driver
+CHR 38;5;220;01          # character device driver
+ORPHAN 01;05;38;5;196    # orphaned symlinks - bold blink red
+MISSING 01;05;38;5;196   # ... and the files they point to
 
 # This is for files with execute permission:
-EXEC 01;32
+EXEC 01;38;5;82          # bold bright green
 
 # List any file extensions like '.gz' or '.tar' that you would like ls
 # to colorize below. Put the extension, a space, and the color init string.
