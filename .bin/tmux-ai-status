@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Scan tmux panes for AI permission prompts (Claude Code, Gemini, etc.)
+# and check for other status conditions.
+#
+# Usage: called from tmux status-right, e.g.:
+#   set -g status-right '#(tmux-ai-status) | %H:%M'
+#   set -g status-interval 5
+
+TRANSCRIPT_DIR="$HOME/ea/inbox/transcripts"
+
+# Outputs a status segment if any AI pane is waiting for input.
+check_ai_waiting() {
+  local pattern="Do you want to proceed|action required"
+  local waiting_count=0
+  local waiting_windows=()
+
+  while IFS= read -r pane_info; do
+    local session="${pane_info%%:*}"
+    local rest="${pane_info#*:}"
+    local window="${rest%%:*}"
+    local pane="${rest##*:}"
+    local pane_target="${session}:${window}.${pane}"
+
+    local content
+    content=$(tmux capture-pane -t "$pane_target" -p 2>/dev/null) || continue
+
+    if echo "$content" | grep -qiE "$pattern"; then
+      waiting_count=$((waiting_count + 1))
+      local win_key="${session}:${window}"
+      if [[ ! " ${waiting_windows[*]} " =~ " ${win_key} " ]]; then
+        waiting_windows+=("$win_key")
+      fi
+    fi
+  done < <(tmux list-panes -a -F "#{session_name}:#{window_index}:#{pane_index}" 2>/dev/null)
+
+  if [ ${#waiting_windows[@]} -gt 0 ]; then
+    local win_nums=()
+    for w in "${waiting_windows[@]}"; do
+      win_nums+=("win ${w##*:}")
+    done
+    local label
+    label=$(IFS=,; echo "${win_nums[*]}")
+    printf "#[fg=colour232,bg=colour220,bold] ⚡AI Needs help: %s #[default]" "$label"
+  fi
+}
+
+# Outputs a status segment if there are transcripts waiting to be processed.
+check_transcripts() {
+  [ -d "$TRANSCRIPT_DIR" ] || return
+  local count
+  count=$(find "$TRANSCRIPT_DIR" -maxdepth 1 -type f -not -name '.*' | wc -l | tr -d ' ')
+  if [ "$count" -gt 0 ]; then
+    printf "#[fg=colour232,bg=colour75,bold] 📄 %s transcript%s #[default]" \
+      "$count" "$( [ "$count" -eq 1 ] && echo "" || echo "s" )"
+  fi
+}
+
+check_ai_waiting
+check_transcripts

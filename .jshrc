@@ -7,15 +7,17 @@ umask 0022
 # if [ $- == *i* ] ; then
 INTERACTIVE="yes"
 
-# set to 1 to debug timing
-DEBUG=
 
-__debug()
-{
-    if [ $DEBUG ] ; then
-        echo "$(date +%H:%M:%S:%N) -- $*"
-    fi
-}
+# debug defined and set in .zshrc
+# set to 1 to debug timing
+#DEBUG=
+
+# __debug()
+# {
+#     if [ $DEBUG ] ; then
+#         echo "$(date +%H:%M:%S:%N) -- $*"
+#     fi
+# }
 
 
 __debug "Loading .jshrc"
@@ -80,13 +82,16 @@ pathmunge ()
         # __debug "_After pathmunge ruby args $*"
     #fi
 
-    if ! echo "$PATH" | egrep "(^|:)$1($|:)" >/dev/null 2>&1; then
-        if [ "$2" = "after" ] ; then
-            PATH=$PATH:$1
-        else
-            PATH=$1:$PATH
-        fi
-    fi
+    case ":${PATH}:" in
+        *:$1:*) ;;
+        *)
+            if [ "$2" = "after" ] ; then
+                PATH="${PATH}:$1"
+            else
+                PATH="$1:${PATH}"
+            fi
+            ;;
+    esac
 }
 
 manpathmunge ()
@@ -213,13 +218,17 @@ JJR_CLASSPATH="${JJR_ENV}/classpath/*"
 # for some reason adding it to the path if its already there messes with rvm-prompt command
 # this can happen if we re-source this file
 # This loads RVM into a shell session.
-if which rbenv 2>&1 > /dev/null ; then
-    __debug "Initializing rbenv shell environment"
-    if echo $SHELL | grep -q zsh ; then
-        eval "$(rbenv init - zsh)"
-    else
-        eval "$(rbenv init -)"
-    fi
+if command -v rbenv > /dev/null 2>&1 ; then
+    __debug "Deferring rbenv initialization"
+    rbenv() {
+        unset -f rbenv
+        if [[ $SHELL == *zsh* ]] ; then
+            eval "$(command rbenv init - zsh)"
+        else
+            eval "$(command rbenv init -)"
+        fi
+        rbenv "$@"
+    }
 elif [[ -s "$HOME/.rvm/scripts/rvm" ]] ; then
     . "$HOME/.rvm/scripts/rvm"
     #PATH=$PATH:$HOME/.rvm/bin # Add RVM to PATH for scripting
@@ -239,7 +248,7 @@ fi
 
 
 
-if echo $SHELL | grep zsh > /dev/null 2>&1 ; then
+if [[ $SHELL == *zsh* ]] ; then
     __debug "Loading .zshrc"
     RC_FILE="${HOME}/.zshrc"
 else
@@ -290,10 +299,6 @@ __debug "Before pathmunging"
 #Just in case my path isn't set up properly.
 pathmunge /bin
 pathmunge /usr/bin
-pathmunge /usr/games/bin
-
-# For service starting and stopping
-pathmunge /etc/init.d after
 
 # I really want /usr/local/bin at the front of the path
 pathmunge /usr/local/bin before
@@ -301,16 +306,13 @@ pathmunge /usr/local/bin before
 # system sbins
 pathmunge /sbin after
 pathmunge /usr/sbin after
-pathmunge /usr/local/sbin after
 
 # Personal bin directories.  Add them if they exist
 # I usually leave bin in JJR_ENV/bin but check for them
 # in ~ just in case.
 # Do these last so they are always first in the path
 pathmunge ~/.local/bin before
-pathmunge ~/bin before
 pathmunge $JJR_BIN before
-
 
 #############################################################
 ##
@@ -378,9 +380,9 @@ fi
 # Some programs look to these evironment variables for
 # text editor programs. If we have my stripped down emacs,
 # use that, else use vi.
-if which e > /dev/null 2>&1 ; then
+if command -v e > /dev/null 2>&1 ; then
     VISUAL=runemacs
-elif which vim >/dev/null 2>&1 ; then
+elif command -v vim > /dev/null 2>&1 ; then
     VISUAL=vim
 else
     VISUAL=vi
@@ -396,9 +398,7 @@ EDITOR=$VISUAL
 # SunOS's which command returns 0 even on failure.  Morons.
 # and yes, we have to try which which first because sometimes that fails.
 __debug "Before dircolors"
-if which which >/dev/null 2>&1 && which file >/dev/null 2>&1 &&
-        ! file $(/usr/bin/which which) | egrep "(C shell|csh script)" >/dev/null 2>&1 &&
-        which dircolors > /dev/null 2>&1 ; then
+if command -v dircolors > /dev/null 2>&1 ; then
     if [ -r "${HOME}/.dir_colors" ] ; then
         eval `dircolors -b ${HOME}/.dir_colors`
     elif [ -r "/etc/DIR_COLORS" ] ; then
@@ -429,14 +429,11 @@ if [ "$(uname)" = "Darwin" ] ; then
     ## Homebrew on the mac
     ##
     #############################################################
-    if which brew > /dev/null 2>&1 ; then
-        # add ruby bin from hombrew
-        # don't need this with RVM installed
-        #    pathmunge /usr/local/Cellar/ruby/*/bin before
-        # coreutils are prefixed with g so this puts the real names in the path
-        pathmunge $(brew --prefix coreutils)/libexec/gnubin before
-        pathmunge $(brew --prefix)/bin
-        [ -e $(brew --prefix)/etc/profile.d/z.sh ] && source $(brew --prefix)/etc/profile.d/z.sh
+    if command -v brew > /dev/null 2>&1 ; then
+        BREW_PREFIX="$(brew --prefix)"
+        pathmunge "${BREW_PREFIX}/opt/coreutils/libexec/gnubin" before
+        pathmunge "${BREW_PREFIX}/bin"
+        [ -e "${BREW_PREFIX}/etc/profile.d/z.sh" ] && source "${BREW_PREFIX}/etc/profile.d/z.sh"
     fi
 
     # my 2TB samples drive
@@ -504,14 +501,14 @@ if [ -n "$INTERACTIVE" ] ; then
     # check for gnu utilities with --version flag.
     unalias ls > /dev/null 2>&1
     unalias ll > /dev/null 2>&1
-    if ls --color > /dev/null 2>&1 ; then
+    if ls --color=auto /dev/null > /dev/null 2>&1 ; then
         alias ls='ls --color'
         alias ll='ls -lh'
     else
         alias ls='ls -F'
         alias ll='ls -l'
     fi
-    if df --version >/dev/null 2>&1 ; then
+    if df --version > /dev/null 2>&1 ; then
         alias df='df -h'
     else
         alias df='df -k'
@@ -527,7 +524,7 @@ if [ -n "$INTERACTIVE" ] ; then
         alias pse='ps -e'
         alias psel='ps -e | less'
     fi
-    if grep --version >/dev/null 2>&1 ; then
+    if grep --version > /dev/null 2>&1 ; then
         alias grep='grep --color=always -I'
         alias egrep='egrep --color=always -I'
         alias igrepm='grep --color=always -iI'
@@ -584,7 +581,7 @@ if [ -n "$INTERACTIVE" ] ; then
     }
 
     # Gentoo aliases
-    if which emerge >/dev/null 2>&1 ; then
+    if command -v emerge > /dev/null 2>&1 ; then
         # Run emerge at a lower process priority so the desktop is still
         # responsive, even if your updating
         alias emerge='nice -n 19 emerge'
@@ -977,7 +974,7 @@ fi
 ##
 #############################################################
 
-if which aws > /dev/null ; then
+if command -v aws > /dev/null 2>&1 ; then
     # aws tools have about 30 ways to find the credentials.
     # Set them all
 

@@ -5,9 +5,18 @@
 #############################################################
 
 # http://zsh.sourceforge.net/Guide/zshguide02.html
-DEBUG=
+# set to 1 to debug timing
+export DEBUG=
 
-[ $DEBUG ] && echo "Reading .zshrc"
+__debug()
+{
+    if [ $DEBUG ] ; then
+        echo "$(date +%H:%M:%S:%N) -- $*"
+    fi
+}
+
+
+__debug "Reading .zshrc"
 
 export HISTFILE=${HOME}/.zhistory
 export SAVEHIST=10000
@@ -22,7 +31,7 @@ setopt incappendhistory  #Immediately append to the history file, not just when 
 
 # source Prezto.
 if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
-    [ $DEBUG ] && echo "Initializing zprezto"
+    __debug "Initializing zprezto"
     source "${ZDOTDIR:-$HOME}/.zprezto/init.zsh"
 fi
 
@@ -35,9 +44,9 @@ unsetopt auto_name_dirs
 # http://zsh.sourceforge.net/Intro/intro_16.html
 # Clobber files on redirect. I'm an adult.
 setopt clobber
-[ $DEBUG ] && echo "Sourcing .jshrc"
+__debug "Sourcing .jshrc"
 [ -r ~/.jshrc ] && source ~/.jshrc
-[ $DEBUG ] && echo "Finished sourcing .jshrc"
+__debug "Finished sourcing .jshrc"
 if [ "$TERM" = "screen" ] ; then
     # keeps zsh from clobbering explicitly set window titles in tmux
     export DISABLE_AUTO_TITLE=true
@@ -46,7 +55,7 @@ fi
 # only works if iTerm has been configured to map command+backspace to send escsape sequence [3~
 #bindkey '^[[3~' backward-kill-word
 
-export PATH=$PATH:$HOME/bin/traveling-tjsh
 
 # Added by nex: https://git.hubteam.com/HubSpot/nex
 [ -e ~/.hubspot/shellrc ] && . ~/.hubspot/shellrc
+__debug "Finished loading .zshrc"
