@@ -189,16 +189,31 @@ if $DARWIN ; then
 
 
 
-    # When I moved to catalina, open -a would not focus Emacs.app when called. It would open but not focus
-    # This emacs-mac port worked fine. Not sure if it's a bug in emacs or Catalina security thing.
-    # stopped using cask 2023-11-26 to debug a path problem but it was unrelated.
-    # Could go back but the formulae also works fine. 
-    #    brew tap railwaycat/emacsmacport
-    brew_cask_install emacs
+    brew tap d12frosted/emacs-plus
+    brew_install emacs-plus@30 --with-xwidgets --with-imagemagick
+    if [ -d /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app ] && [ ! -e /Applications/Emacs.app ] ; then
+        cp -R /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app /Applications/Emacs.app
+    fi
     
     if [ ! -d ~/.emacs.d ] ; then
-        echo "Pulling latest emacs.d from github and installing emacs"    
-        git clone git@github.com:jjrussell/emacs.d.git .emacs.d 
+        echo "Pulling latest emacs.d from github and installing emacs"
+        git clone git@github.com:jjrussell/emacs.d.git .emacs.d
+    fi
+
+    # EmacsClient.app - a compiled AppleScript wrapper around emacsclient
+    # that opens files in the existing Emacs frame instead of spawning a new one.
+    # Used as the default macOS handler for text/source files.
+    if [ -d "${HOME}/.bin/EmacsClient.app" ] ; then
+        ln -sfv ${HOME}/.bin/EmacsClient.app /Applications/EmacsClient.app
+        /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/EmacsClient.app
+        brew_install duti
+        for ext in .el .py .js .ts .tsx .jsx .java .rb .rs .go .c .h .cpp .sh .zsh .bash .yml .yaml .json .toml .xml .css .scss .sql .md .txt .cfg .conf .ini .log .org; do
+            duti -s org.gnu.emacsclient "$ext" editor
+        done
+        duti -s org.gnu.emacsclient public.plain-text editor
+        duti -s org.gnu.emacsclient public.source-code editor
+        duti -s org.gnu.emacsclient net.daringfireball.markdown editor
+        echo "EmacsClient.app linked and set as default editor for common file types"
     fi
 
     echo "Installing apps with brew cask"
@@ -250,9 +265,6 @@ if $DARWIN ; then
 
     #install_ruby
     
-    # tmux
-    brew_install reattach-to-user-namespace
-
     # setup zsh
     # https://github.com/sorin-ionescu/prezto
 
@@ -264,25 +276,6 @@ if $DARWIN ; then
             ln -s "$rcfile" "${JJR_HOME}/.${rcfile:t}"
         done
     fi
-
-       #  I don't think this is needed with zprezto themes
-    # if ! which powerline ; then
-    #     #pip3 install git+httpsgit://github.com/Lokaltog/powerline
-    #     # get the fonts for powerline
-    #     #pushd ~/Library > /dev/null
-    #     #if [ ! -d "powerline-fonts" ] ; then
-    #     #    git clone https://github.com/Lokaltog/powerline-fonts
-    #     #fi
-    #     #pushd powerline-fonts > /dev/null
-    #     #bash install.sh
-    #     # https://coderwall.com/p/yiot4q/setup-vim-powerline-and-iterm2-on-mac-os-x
-    #     pip3 install powerline-status
-    #     echo ""
-    #     echo "**** IMPORTANT ****"
-    #     echo "Be sure that iTerm2 has both ASCII _and_ non-ASCII fonts set to a powerline font"
-    #     echo "Preferably just set the preferences folder to be ~/.jjr-drive/config/iterm2 where it's already set up"
-    #     echo ""
-    # fi
 
     echo "Other things to manully install and set up"
     echo
