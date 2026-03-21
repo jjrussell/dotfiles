@@ -55,6 +55,7 @@ fi
 # only works if iTerm has been configured to map command+backspace to send escsape sequence [3~
 #bindkey '^[[3~' backward-kill-word
 
+[ -e ~/.zsh-tv ] && . ~/.zsh-tv
 
 # Added by nex: https://git.hubteam.com/HubSpot/nex
 [ -e ~/.hubspot/shellrc ] && . ~/.hubspot/shellrc

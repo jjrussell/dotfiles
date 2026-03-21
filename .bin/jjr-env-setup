@@ -17,6 +17,25 @@ fi
 
 setopt EXTENDED_GLOB
 
+if [ -f "${HOME}/.work" ] ; then
+    HOME_ENV=false
+elif [ -f "${HOME}/.home" ] ; then
+    HOME_ENV=true
+else
+    ENV_CHOICE=""
+    while [ "$ENV_CHOICE" != "home" ] && [ "$ENV_CHOICE" != "work" ] ; do
+        echo "Is this a home or work machine? (home/work)"
+        read ENV_CHOICE
+    done
+    if [ "$ENV_CHOICE" = "home" ] ; then
+        touch "${HOME}/.home"
+        HOME_ENV=true
+    else
+        touch "${HOME}/.work"
+        HOME_ENV=false
+    fi
+fi
+
 JJR_HOME="${HOME}/.dotfiles"
 HUBSPOT_KICKSTART="${HOME}/.hubspot-kickstart-run-by-jjr-env-setup"
 if [ ! -d ${JJR_HOME} ] ; then
@@ -70,12 +89,10 @@ function install_google_drive(){
 }
 
 function install_ruby() {
-    if ! which rvm > /dev/null ; then
-        echo "Installing rvm ruby and basic gems"
-        \curl -sSL https://get.rvm.io | bash -s -- --ignore-dotfiles
-        rvm install ruby
-        #source ~/.bashrc # reread rvm config
-        rvm all do gem install awesome_print bundle fog json mixlib-cli pry pry-stack_explorer pry-doc ripper-tags rubygems
+    brew_install rbenv ruby-build
+    if ! rbenv versions | grep -q .; then
+        rbenv install -l | grep -E '^\s*[0-9]+\.[0-9]+\.[0-9]+$' | tail -1 | xargs rbenv install
+        rbenv global $(rbenv versions --bare | tail -1)
     fi
 }
 
@@ -219,51 +236,48 @@ if $DARWIN ; then
     echo "Installing apps with brew cask"
 
     brew_cask_install iterm2
-    brew_cask_install firefox
-    brew_cask_install musescore
-    #brew_cask_install native-access # kontact
     brew_cask_install licecap
     brew_cask_install caffeine
     brew_cask_install vlc
-    brew_cask_install istat-menus
     brew_cask_install hammerspoon
     brew_cask_install alfred
-    brew_cask_install unified-remote
     brew_cask_install jetbrains-toolbox
     brew_cask_install disk-inventory-x
-    brew_cask_install discord
-    brew_cask_install steam
+
     # nerdy stuff
     # brew_cask_install docker
-    # android development
-    # brew_cask_install android-studio
-    # brew_cask_install android-sdk
-    # brew_cask_install android-platform-tools
 
     # brew_cask_install macvim 
     # brew_cask_install flip4mac
     # brew_cask_install imagemagick
     # brew_cask_install flux
-    # brew_cask_install mou # doesn't support sierra yet
     
     echo "Installing brew apps"
-    brew_install diffutils go gawk binutils ack ag aspell csshx gnutls irssi ispell jq libxml2 maven mtr ncdu packer pstree scala v8 ncdu tmux awscli python watch wget git gzip bash gdb zsh unzip rsync python openssh git file-formula less coreutils fzf z libcouchbase pssh libdvdcss htop ed wdiff grep gnu-which gnu-tar gnu-sed gnu-indent findutils scroll-reverser  ffmpeg
+    brew_install diffutils go gawk binutils ack ag aspell gnutls ispell jq libxml2 maven mtr ncdu pstree scala v8 tmux awscli python watch wget git gzip bash gdb zsh unzip rsync openssh file-formula less coreutils fzf z libcouchbase pssh libdvdcss htop ed wdiff grep gnu-which gnu-tar gnu-sed gnu-indent findutils ffmpeg
+    brew_install bat fd gh grip lsd ripgrep television mkcert
+    brew_install pyenv pyenv-virtualenv node nvm deno uv
     # don't need with Vocaster
     # blackhole-2ch
-    #brew install httpie --HEAD # hubspot does this
 
-    # full xcode required by macvim so put it earlier
-    #install_xcode
-    # ln -sf /Applications /usr/local/Cellar/emacs/*/Emacs.app # doesn't seem to be needed anymore
-    brew_install vim 
+    brew_install vim
     brew link vim
 
     brew install mas # mac app store CLI interface https://github.com/mas-cli/mas
     brew install balance-lock # keeps caldigit ps4 from switching audio left or right
 
-    # apple-gcc42 atop curl-ca-bundle hydra-cli  itop libv8
-
     #install_ruby
+
+    if $HOME_ENV ; then
+        brew_cask_install musescore
+        brew_cask_install native-access
+        brew_cask_install discord
+        brew_cask_install steam
+        brew_cask_install handbrake
+    fi
+
+    if ! $HOME_ENV ; then
+        brew_cask_install loom
+    fi
     
     # setup zsh
     # https://github.com/sorin-ionescu/prezto
