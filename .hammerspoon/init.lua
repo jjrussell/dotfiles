@@ -520,5 +520,27 @@ end
 ---
 -------------------------------------------------------------- 
 
+-- Cycle appearance: dark → light → auto → dark ...
+hs.hotkey.bind(mash, 'D', function()
+   local auto = hs.execute("defaults read -g AppleInterfaceStyleSwitchesAutomatically 2>/dev/null"):gsub("%s+", "")
+   local current = hs.execute("defaults read -g AppleInterfaceStyle 2>/dev/null"):gsub("%s+", "")
+
+   if auto == "1" then
+      -- auto → dark
+      hs.execute("defaults write -g AppleInterfaceStyleSwitchesAutomatically -bool false")
+      hs.osascript.applescript('tell application "System Events" to tell appearance preferences to set dark mode to true')
+      hs.alert.show("Dark Mode")
+   elseif current == "Dark" then
+       -- dark → light
+       hs.execute("defaults write -g AppleInterfaceStyleSwitchesAutomatically -bool false")
+       hs.osascript.applescript('tell application "System Events" to tell appearance preferences to set dark mode to false')
+       hs.alert.show("Light Mode")
+   else
+      -- light → auto
+      hs.execute("defaults write -g AppleInterfaceStyleSwitchesAutomatically -bool true")
+      hs.alert.show("Auto Mode")
+   end
+end)
+
 -- hs.loadSpoon("CircleClock")
   

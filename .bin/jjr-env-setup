@@ -243,7 +243,7 @@ if $DARWIN ; then
     brew_cask_install alfred
     brew_cask_install jetbrains-toolbox
     brew_cask_install disk-inventory-x
-
+    brew_cask_install font-droid-sans-mono-nerd-font
     # nerdy stuff
     # brew_cask_install docker
 

@@ -29,6 +29,9 @@ setopt sharehistory      #Share history across terminals
 setopt incappendhistory  #Immediately append to the history file, not just when a term is killed
 
 
+# custom prompt theme
+fpath=("$HOME/.zsh/prompts" $fpath)
+
 # source Prezto.
 if [[ -s "${ZDOTDIR:-$HOME}/.zprezto/init.zsh" ]]; then
     __debug "Initializing zprezto"
