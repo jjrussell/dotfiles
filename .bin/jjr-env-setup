@@ -38,10 +38,6 @@ fi
 
 JJR_HOME="${HOME}/.dotfiles"
 HUBSPOT_KICKSTART="${HOME}/.hubspot-kickstart-run-by-jjr-env-setup"
-if [ ! -d ${JJR_HOME} ] ; then
-    echo "Your home env directory ${JJR_HOME} wasn't there"
-    exit 1
-fi
 
 function link_home_dir(){
     pushd ~
@@ -143,6 +139,38 @@ if $DARWIN ; then
         fi
     }
 
+    function install_emacs() {
+        brew tap d12frosted/emacs-plus
+        brew_install emacs-plus@30 --with-xwidgets --with-imagemagick
+        if [ -d /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app ] && [ ! -e /Applications/Emacs.app ] ; then
+            cp -R /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app /Applications/Emacs.app
+        fi
+        
+        if [ ! -d ~/.emacs.d ] ; then
+            echo "Pulling latest emacs.d from github and installing emacs"
+            pushd ~
+            git clone git@github.com:jjrussell/emacs.d.git .emacs.d
+            popd
+        fi
+
+        # EmacsClient.app - a compiled AppleScript wrapper around emacsclient
+        # that opens files in the existing Emacs frame instead of spawning a new one.
+        # Used as the default macOS handler for text/source files.
+        if [ -d "${HOME}/.bin/EmacsClient.app" ] ; then
+            ln -sfv ${HOME}/.bin/EmacsClient.app /Applications/EmacsClient.app
+            /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/EmacsClient.app
+            brew_install duti
+            for ext in .el .py .js .ts .tsx .jsx .java .rb .rs .go .c .h .cpp .sh .zsh .bash .yml .yaml .json .toml .xml .css .scss .sql .md .txt .cfg .conf .ini .log .org; do
+                duti -s org.gnu.emacsclient "$ext" editor
+            done
+            duti -s org.gnu.emacsclient public.plain-text editor
+            duti -s org.gnu.emacsclient public.source-code editor
+            duti -s org.gnu.emacsclient net.daringfireball.markdown editor
+            echo "EmacsClient.app linked and set as default editor for common file types"
+        fi
+
+    }
+    
     function mac_settings(){
         echo "OSX specific settings"
         # faster key repeats. Usually have to log out and log in to take effect
@@ -190,9 +218,16 @@ if $DARWIN ; then
 
     install_google_drive
     
+    if [ ! -d ${JJR_HOME} ] ; then
+        echo "Your home env directory ${JJR_HOME} wasn't there"
+        echo "git clone git@github.com:jjrussell/dotfiles.git"
+        exit 1
+    fi
+
+   
     link_home_dir
     mac_settings
-    if which nex ; then
+    if command nex ; then
         echo "Running HubSpot setup"
         hubspot_setup
     else
@@ -204,46 +239,17 @@ if $DARWIN ; then
     fi
 
 
-
-
-    brew tap d12frosted/emacs-plus
-    brew_install emacs-plus@30 --with-xwidgets --with-imagemagick
-    if [ -d /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app ] && [ ! -e /Applications/Emacs.app ] ; then
-        cp -R /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app /Applications/Emacs.app
-    fi
-    
-    if [ ! -d ~/.emacs.d ] ; then
-        echo "Pulling latest emacs.d from github and installing emacs"
-        git clone git@github.com:jjrussell/emacs.d.git .emacs.d
-    fi
-
-    # EmacsClient.app - a compiled AppleScript wrapper around emacsclient
-    # that opens files in the existing Emacs frame instead of spawning a new one.
-    # Used as the default macOS handler for text/source files.
-    if [ -d "${HOME}/.bin/EmacsClient.app" ] ; then
-        ln -sfv ${HOME}/.bin/EmacsClient.app /Applications/EmacsClient.app
-        /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/EmacsClient.app
-        brew_install duti
-        for ext in .el .py .js .ts .tsx .jsx .java .rb .rs .go .c .h .cpp .sh .zsh .bash .yml .yaml .json .toml .xml .css .scss .sql .md .txt .cfg .conf .ini .log .org; do
-            duti -s org.gnu.emacsclient "$ext" editor
-        done
-        duti -s org.gnu.emacsclient public.plain-text editor
-        duti -s org.gnu.emacsclient public.source-code editor
-        duti -s org.gnu.emacsclient net.daringfireball.markdown editor
-        echo "EmacsClient.app linked and set as default editor for common file types"
-    fi
-
     echo "Installing apps with brew cask"
 
     brew_cask_install iterm2
-    brew_cask_install licecap
-    brew_cask_install caffeine
     brew_cask_install vlc
     brew_cask_install hammerspoon
     brew_cask_install alfred
     brew_cask_install jetbrains-toolbox
-    brew_cask_install disk-inventory-x
+    brew_cask_install grandperspective
     brew_cask_install font-droid-sans-mono-nerd-font
+    brew_cask_install elgato-stream-deck
+    
     # nerdy stuff
     # brew_cask_install docker
 
@@ -255,7 +261,7 @@ if $DARWIN ; then
     echo "Installing brew apps"
     brew_install diffutils go gawk binutils ack ag aspell gnutls ispell jq libxml2 maven mtr ncdu pstree scala v8 tmux awscli python watch wget git gzip bash gdb zsh unzip rsync openssh file-formula less coreutils fzf z libcouchbase pssh libdvdcss htop ed wdiff grep gnu-which gnu-tar gnu-sed gnu-indent findutils ffmpeg
     brew_install bat fd gh grip lsd ripgrep television mkcert
-    brew_install pyenv pyenv-virtualenv node nvm deno uv
+    brew_install pyenv pyenv-virtualenv node nvm deno uv sesh zoxide obsidian
     # don't need with Vocaster
     # blackhole-2ch
 
@@ -293,22 +299,18 @@ if $DARWIN ; then
 
     echo "Other things to manully install and set up"
     echo
-    echo "- Install Brave browser"
     echo "- Set up external keyboard modifiers"
     echo "- Set tab to focus all input controls in Keyboard -> Shortcut"
     echo "- customize date and time format - 24h, short date YYYY-MM-DD"
     echo "- Enable three finger trackpad dragging in Accessibility -> Mouse & Tracking Mouse https://support.apple.com/en-us/HT204609"
-    echo "- Set iTerm preferences folder to ~/.jjr-drive/config/iterm2. Be sure to set 'Save Changes' to Manual until you quit and have it load the old prefs or they will get clobbered"
-    echo "- Install Powerline fonts - https://github.com/powerline/fonts"
+    echo "- Set iTerm preferences folder to ~/.dotfiles/.config/iterm2. Be sure to set 'Save Changes' to Manual until you quit and have it load the old prefs or they will get clobbered"
     echo "- download script for iterm2 to react to OSX theme changes https://gist.github.com/jamesmacfie/2061023e5365e8b6bfbbc20792ac90f8"
     echo "- Give hammerspoon access to move around windows in Security & Privacy properties Accessibility"
     echo "- Set Alfred activation key - https://mail.google.com/mail/u/0/#search/alfred+power+pack/FMfcgxwCgphtpDPXWfsZClWlfWTQWRxM"
-    echo "- Set Alfred preferences folder to ~/.jjr-drive/config/alfred"
+    echo "- Set Alfred preferences folder to ~/.dotfiles/.config/alfred"
     echo "- Give Alfred Snippets Accessibility access. First enable snippets in the Alfred preferences, then follow instructions"
     echo "- Todoist needs to be installed from the App Store"
     echo "- Give emacs full disk access in Privacy https://medium.com/@holzman.simon/emacs-on-macos-catalina-10-15-in-2019-79ff713c1ccc "
-    echo "- register istat menus - https://mail.google.com/mail/u/0/#search/istats+menu/FMfcgxvzKtZzPMsKFBFZqKKnDCnwcVSK"
-    echo "- start Scroll Reverser to configure it to start on login"
     echo "- Downliad Elgato FaceCam 'Camera Hub' software - https://www.elgato.com/en/downloads"
     echo ""
     echo "Music software setup - https://docs.google.com/document/d/1vfKXBZr6PrctjJdxzqQ6CK69AZTAY1PvexdZD4MI2zg/edit"
