@@ -25,7 +25,7 @@
 	<key>AiMaxTokens</key>
 	<integer>400000</integer>
 	<key>AiModel</key>
-	<string>gpt-5.1</string>
+	<string>gpt-5.2</string>
 	<key>AiResponseMaxTokens</key>
 	<integer>128000</integer>
 	<key>AitermURL</key>
@@ -504,6 +504,136 @@
 			<key>Text</key>
 			<string></string>
 		</dict>
+		<key>0x30-0x100000-0x1d</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x30</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x31-0x100000-0x12</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x31</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x32-0x100000-0x13</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x32</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x33-0x100000-0x14</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x33</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x34-0x100000-0x15</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x34</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x35-0x100000-0x17</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x35</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x36-0x100000-0x16</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x36</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x37-0x100000-0x1a</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x37</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x38-0x100000-0x1c</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x38</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x39-0x100000-0x19</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x39</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
 		<key>0x48-0x60000</key>
 		<dict>
 			<key>Action</key>
@@ -517,6 +647,19 @@
 			<integer>34</integer>
 			<key>Text</key>
 			<string></string>
+		</dict>
+		<key>0x60-0x100000-0x32</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x6f</string>
+			<key>Version</key>
+			<integer>2</integer>
 		</dict>
 		<key>0x62-0x100000</key>
 		<dict>
@@ -545,6 +688,19 @@
 			<integer>31</integer>
 			<key>Text</key>
 			<string></string>
+		</dict>
+		<key>0x6b-0x100000-0x28</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>1</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x4B</string>
+			<key>Version</key>
+			<integer>2</integer>
 		</dict>
 		<key>0x6c-0x80000</key>
 		<dict>
@@ -719,6 +875,8 @@
 		<dict>
 			<key>ASCII Anti Aliased</key>
 			<true/>
+			<key>ASCII Ligatures</key>
+			<false/>
 			<key>Allow Title Reporting</key>
 			<false/>
 			<key>Ambiguous Double Width</key>
@@ -1086,7 +1244,7 @@
 			<key>Name</key>
 			<string>Default</string>
 			<key>Non Ascii Font</key>
-			<string>DejaVuSansMonoPowerline 12</string>
+			<string>SymbolsNFM 12</string>
 			<key>Non-ASCII Anti Aliased</key>
 			<true/>
 			<key>Normal Font</key>
@@ -1249,6 +1407,8 @@
 			<real>0.0</real>
 			<key>Triggers</key>
 			<array/>
+			<key>Unicode Version</key>
+			<integer>8</integer>
 			<key>Unlimited Scrollback</key>
 			<true/>
 			<key>Use Bold Font</key>
@@ -2477,9 +2637,9 @@
 	<key>SplitPaneDimmingAmount</key>
 	<real>0.35493290424346924</real>
 	<key>SwitchTabModifier</key>
-	<integer>4</integer>
+	<integer>9</integer>
 	<key>SwitchWindowModifier</key>
-	<integer>6</integer>
+	<integer>9</integer>
 	<key>TabStyle</key>
 	<integer>1</integer>
 	<key>TabStyleWithAutomaticOption</key>

@@ -36,11 +36,11 @@ check_ai_waiting() {
   if [ ${#waiting_windows[@]} -gt 0 ]; then
     local win_nums=()
     for w in "${waiting_windows[@]}"; do
-      win_nums+=("win ${w##*:}")
+      win_nums+=("$w")
     done
     local label
     label=$(IFS=,; echo "${win_nums[*]}")
-    printf "#[fg=colour232,bg=colour220,bold] ⚡AI Needs help: %s #[default]" "$label"
+    printf "#[fg=colour232,bg=colour220,bold] ⚡ AI Needs help: %s #[default]" "$label"
   fi
 }
 

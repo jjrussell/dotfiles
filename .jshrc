@@ -598,8 +598,6 @@ if [ -n "$INTERACTIVE" ] ; then
         alias cdport='cd /usr/portage'
         alias revdep-rebuild='revdep-rebuild -X'
     fi
-
-
 fi
 
 ############################################################

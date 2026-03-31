@@ -56,6 +56,7 @@ fi
 #bindkey '^[[3~' backward-kill-word
 
 [ -e ~/.zsh-tv ] && . ~/.zsh-tv
+[ -e ~/.zsh-zoxide ] && . ~/.zsh-zoxide
 
 # Added by nex: https://git.hubteam.com/HubSpot/nex
 [ -e ~/.hubspot/shellrc ] && . ~/.hubspot/shellrc
