@@ -1468,7 +1468,7 @@
 			<key>Action</key>
 			<integer>11</integer>
 			<key>Apply Mode</key>
-			<integer>1</integer>
+			<integer>0</integer>
 			<key>Escaping</key>
 			<integer>2</integer>
 			<key>Text</key>
@@ -1482,6 +1482,45 @@
 			<integer>30</integer>
 			<key>Text</key>
 			<string></string>
+		</dict>
+		<key>0x70-0x100000-0x23</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x50</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x72-0x100000-0xf</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x52</string>
+			<key>Version</key>
+			<integer>2</integer>
+		</dict>
+		<key>0x74-0x100000-0x11</key>
+		<dict>
+			<key>Action</key>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>0</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
+			<key>Text</key>
+			<string>0x16 0x63</string>
+			<key>Version</key>
+			<integer>2</integer>
 		</dict>
 		<key>0x7f-0x100000</key>
 		<dict>

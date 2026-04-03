@@ -7,7 +7,7 @@ requirements = ["fd", "bat"]
 command = ["fd -t f --no-ignore", "fd -t f -H --no-ignore"]
 
 [preview]
-command = "bat -n --color=always '{}'"
+command = "~/.config/television/preview.sh '{}'"
 env = { BAT_THEME = "ansi" }
 
 [keybindings]
