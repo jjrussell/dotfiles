@@ -261,7 +261,7 @@ if $DARWIN ; then
     echo "Installing brew apps"
     brew_install diffutils go gawk binutils ack ag aspell gnutls ispell jq libxml2 maven mtr ncdu pstree scala v8 tmux awscli python watch wget git gzip bash gdb zsh unzip rsync openssh file-formula less coreutils fzf z libcouchbase pssh libdvdcss htop ed wdiff grep gnu-which gnu-tar gnu-sed gnu-indent findutils ffmpeg
     brew_install bat fd gh grip lsd ripgrep television mkcert
-    brew_install pyenv pyenv-virtualenv node nvm deno uv sesh zoxide obsidian
+    brew_install pyenv pyenv-virtualenv node nvm deno uv sesh zoxide obsidian lazygit
     # don't need with Vocaster
     # blackhole-2ch
 
