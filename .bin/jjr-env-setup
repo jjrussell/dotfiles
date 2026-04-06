@@ -1,26 +1,20 @@
 #!/bin/zsh
 
 set -e
-if [ `uname` = "Darwin" ] ; then
-    DARWIN=true
-    LINUX=false
-else
-    DARWIN=false
-    LINUX=true
-fi
-
-if [ "$1" = "upgrade" ] ; then
-    UPGRADE=true
-else
-    UPGRADE=false
-fi
-
 setopt EXTENDED_GLOB
+
+#############################################################
+##
+## Detect and set environment
+##
+############################################################# 
 
 if [ -f "${HOME}/.work" ] ; then
     HOME_ENV=false
+    WORK_ENV=true
 elif [ -f "${HOME}/.home" ] ; then
     HOME_ENV=true
+    WORK_ENV=false
 else
     ENV_CHOICE=""
     while [ "$ENV_CHOICE" != "home" ] && [ "$ENV_CHOICE" != "work" ] ; do
@@ -30,20 +24,45 @@ else
     if [ "$ENV_CHOICE" = "home" ] ; then
         touch "${HOME}/.home"
         HOME_ENV=true
+        WORK_ENV=false
     else
         touch "${HOME}/.work"
         HOME_ENV=false
+        WORK_ENV=true
     fi
 fi
 
+if [ "$1" = "upgrade" ] ; then
+    UPGRADE=true
+    BUNDLE_ARGS=("--quiet")
+else
+    UPGRADE=false
+    BUNDLE_ARGS=("--no-upgrade" "--quiet")
+fi
+
+function run_brew_bundle() {
+    local FILE=$1
+    if [ -f "$FILE" ] ; then
+        echo "Running brew bundle for $FILE"
+        brew bundle install "${BUNDLE_ARGS[@]}" --file="$FILE"
+    fi
+}
+
+
 JJR_HOME="${HOME}/.dotfiles"
 HUBSPOT_KICKSTART="${HOME}/.hubspot-kickstart-run-by-jjr-env-setup"
+
+#############################################################
+##
+## Functions
+##
+############################################################# 
 
 function link_home_dir(){
     pushd ~
     local RESOURCE=false
     if [ ! -d "${JJR_HOME}" ] ; then
-        echo "It looks like Google Drive hasn't been set up yet. Make sure that's working"
+        echo "It looks like your dotfiles aren't here yet. Go get them from https://github.com/jjrussell/dotfiles"
         exit 1
     fi
     for DOT in `ls -A ${JJR_HOME}` ; do
@@ -52,7 +71,7 @@ function link_home_dir(){
                 mv -v ${HOME}/$DOT ${HOME}/$DOT.orig
                 RESOURCE=true
             fi
-            ln -sfv ${JJR_HOME}/$DOT . # this will clobber all existing symlinks so the command is idempotent
+            ln -sf ${JJR_HOME}/$DOT . # this will clobber all existing symlinks so the command is idempotent
         fi
     done
     if $RESOURCE ; then
@@ -64,28 +83,34 @@ function link_home_dir(){
     echo "Home directory linked"
 }
 
-function install_google_drive(){
-    if ! pgrep -ilq "Google Drive" ; then
-        if $DARWIN ; then
-            if ! open -a "Google Drive" ; then
-                echo "Google Drive doesn't appear to be installed. Installing it."
-                brew_cask_install "google-drive"
-                open -a "Google Drive"
-            fi
+function install_zprezto(){
+    if [ ! -d "${JJR_HOME}/.zprezto" ] ; then
+        echo "Installing .zprezto"
+        git clone --recursive https://github.com/sorin-ionescu/prezto.git "${JJR_HOME}/.zprezto"
 
-            echo "Google Backup and Sync wasn't running. Starting it up."
-        else
-            echo "Go install Google Drive."
-        fi
-        echo "Press enter when offline syncing of jjr-environment directory is done."
+        for rcfile in "${JJR_HOME}"/.zprezto/runcoms/^README.md(.N); do
+            ln -sf "$rcfile" "${JJR_HOME}/.${rcfile:t}"
+        done
+    fi
+
+}
+
+function install_homebrew(){
+    if ! which brew > /dev/null ; then
+        echo "Going to install homebrew now"
+        echo "http://brew.sh/"
+        echo "Going to execute the brew install script from https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
+        echo "Enter to proceed"
+        echo "Ctrl-C to exit"
         read
-    else
-        echo "Google Drive is running. Moving on"
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        
     fi
 }
 
+
 function install_ruby() {
-    brew_install rbenv ruby-build
+    # rbenv and ruby-build are in the Brewfile
     if ! rbenv versions | grep -q .; then
         rbenv install -l | grep -E '^\s*[0-9]+\.[0-9]+\.[0-9]+$' | tail -1 | xargs rbenv install
         rbenv global $(rbenv versions --bare | tail -1)
@@ -93,11 +118,68 @@ function install_ruby() {
 }
 
 
-function install_python_packages(){
-    #pip3 install format-sql
+function install_emacs() {
+    # emacs-plus and duti are in the Brewfile
+    if [ -d /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app ] && [ ! -e /Applications/Emacs.app ] ; then
+        cp -R /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app /Applications/Emacs.app
+    fi
+    
+    if [ ! -d ~/.emacs.d ] ; then
+        echo "Pulling latest emacs.d from github and installing emacs"
+        pushd ~
+        git clone git@github.com:jjrussell/emacs.d.git .emacs.d
+        popd
+    fi
+
+    # EmacsClient.app - a compiled AppleScript wrapper around emacsclient
+    # that opens files in the existing Emacs frame instead of spawning a new one.
+    # Used as the default macOS handler for text/source files.
+    if [ -d "${HOME}/.bin/EmacsClient.app" ] ; then
+        ln -sfv ${HOME}/.bin/EmacsClient.app /Applications/EmacsClient.app
+        /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/EmacsClient.app
+        for ext in .el .py .js .ts .tsx .jsx .java .rb .rs .go .c .h .cpp .sh .zsh .bash .yml .yaml .json .toml .xml .css .scss .sql .md .txt .cfg .conf .ini .log .org; do
+            duti -s org.gnu.emacsclient "$ext" editor
+        done
+        duti -s org.gnu.emacsclient public.plain-text editor
+        duti -s org.gnu.emacsclient public.source-code editor
+        duti -s org.gnu.emacsclient net.daringfireball.markdown editor
+        echo "EmacsClient.app linked and set as default editor for common file types"
+    fi
+
 }
 
-function hubspot_setup() {
+function mac_settings(){
+    echo "OSX specific settings"
+    # faster key repeats. Usually have to log out and log in to take effect
+    # normal minimum is 15 (225 ms)
+    defaults write -g InitialKeyRepeat -int 10 
+    # or 0
+    defaults write -g KeyRepeat -int 1
+
+    # When I press a key, repeat the key, don't show other character sets
+    defaults write -g ApplePressAndHoldEnabled -bool false
+
+    # echo "Overlaying the directory structure backed up by jjr-env-backup onto the OSX config directories"
+
+}
+
+
+# function install_xcode(){
+#     if [ -d "/Applications/Xcode.app" ] ; then
+#         if ! which xcodebuild 2>&1 > /dev/null ; then
+#             sudo xcodebuild -license
+#             xcode-select --install
+#         fi
+#     else
+#         echo "Xcode is, like, required and stuff. Go install it."
+#         open -a "App Store"
+#         exit 1
+#     fi
+# }
+
+# Do whatever needs doing for wherever work is 
+function work_setup(){
+    echo "Running work setup"
     if [ ! -e "$HUBSPOT_KICKSTART" ] ; then
         echo "executing HubSpot kickstart script https://private.hubteam.com/kickstart/start.sh"
         echo "Enter to proceed, Ctrl-C to stop"
@@ -110,371 +192,73 @@ function hubspot_setup() {
     fi
 }
 
-if $DARWIN ; then
-    echo "Looks like we're on mac"
+# End of function definitions
 
-    function install_homebrew(){
-        if ! which brew > /dev/null ; then
-            echo "Going to install homebrew now"
-            echo "http://brew.sh/"
-            echo "Going to execute the brew install script from https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh"
-            echo "Enter to proceed"
-            echo "Ctrl-C to exit"
-            read
-            /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-            
-        fi
-    }
+#############################################################
+##
+## Do the thing
+##
+############################################################# 
 
-    function install_xcode(){
-        if [ -d "/Applications/Xcode.app" ] ; then
-            if ! which xcodebuild 2>&1 > /dev/null ; then
-                sudo xcodebuild -license
-                xcode-select --install
-            fi
-        else
-            echo "Xcode is, like, required and stuff. Go install it."
-            open -a "App Store"
-            exit 1
-        fi
-    }
+if ${WORK_ENV} ; then
+    work_setup
+fi
 
-    function install_emacs() {
-        brew tap d12frosted/emacs-plus
-        brew_install emacs-plus@30 --with-xwidgets --with-imagemagick
-        if [ -d /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app ] && [ ! -e /Applications/Emacs.app ] ; then
-            cp -R /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app /Applications/Emacs.app
-        fi
-        
-        if [ ! -d ~/.emacs.d ] ; then
-            echo "Pulling latest emacs.d from github and installing emacs"
-            pushd ~
-            git clone git@github.com:jjrussell/emacs.d.git .emacs.d
-            popd
-        fi
+if [ ! -d ${JJR_HOME} ] ; then
+    echo "Your home env directory ${JJR_HOME} wasn't there"
+    echo "git clone git@github.com:jjrussell/dotfiles.git"
+    exit 1
+fi
 
-        # EmacsClient.app - a compiled AppleScript wrapper around emacsclient
-        # that opens files in the existing Emacs frame instead of spawning a new one.
-        # Used as the default macOS handler for text/source files.
-        if [ -d "${HOME}/.bin/EmacsClient.app" ] ; then
-            ln -sfv ${HOME}/.bin/EmacsClient.app /Applications/EmacsClient.app
-            /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/EmacsClient.app
-            brew_install duti
-            for ext in .el .py .js .ts .tsx .jsx .java .rb .rs .go .c .h .cpp .sh .zsh .bash .yml .yaml .json .toml .xml .css .scss .sql .md .txt .cfg .conf .ini .log .org; do
-                duti -s org.gnu.emacsclient "$ext" editor
-            done
-            duti -s org.gnu.emacsclient public.plain-text editor
-            duti -s org.gnu.emacsclient public.source-code editor
-            duti -s org.gnu.emacsclient net.daringfireball.markdown editor
-            echo "EmacsClient.app linked and set as default editor for common file types"
-        fi
+install_homebrew
+install_zprezto
+link_home_dir
+mac_settings
 
-    }
-    
-    function mac_settings(){
-        echo "OSX specific settings"
-        # faster key repeats. Usually have to log out and log in to take effect
-        # normal minimum is 15 (225 ms)
-        defaults write -g InitialKeyRepeat -int 10 
-        # or 0
-        defaults write -g KeyRepeat -int 1
+echo "Running brew bundle"
+run_brew_bundle "${JJR_HOME}/.config/Brewfile"
 
-        # When I press a key, repeat the key, don't show other character sets
-        defaults write -g ApplePressAndHoldEnabled -bool false
+if ${HOME_ENV} ; then
+    run_brew_bundle "${JJR_HOME}/.config/Brewfile.home"
+fi
 
-        echo "Overlaying the directory structure backed up by jjr-env-backup onto the OSX config directories"
-
-    }
-
-    function install_lua_package(){
-        if [ ! -d "/usr/local/lib/luarocks/rocks/${package}" ] ; then
-            luarocks install $1
-        fi
-    }
-
-    function brew_cask_install(){
-        if [ -e "/Applications/$@" ] ; then
-            echo "/Application/$@.app already exists. Skipping cask install of $@"
-            return
-        fi
-        if ! brew install --cask "$@" ; then
-            if $UPGRADE ; then
-                brew upgrade --cask "$@" || echo "Failed to upgrade '$@'"
-            else
-                echo "Failed to install '$@'"
-            fi
-        fi
-    }
-
-    function brew_install(){
-        local INSTALLED=false
-        if $UPGRADE && brew list "$@" > /dev/null 2>&1 ; then
-            brew upgrade "$@" || echo "Failed to upgrade '$@'"
-            INSTALLED=true
-        fi
-
-        brew install "$@" || echo "Failed to install '$@'"
-    }
-
-    install_google_drive
-    
-    if [ ! -d ${JJR_HOME} ] ; then
-        echo "Your home env directory ${JJR_HOME} wasn't there"
-        echo "git clone git@github.com:jjrussell/dotfiles.git"
-        exit 1
-    fi
-
-   
-    link_home_dir
-    mac_settings
-    if command nex ; then
-        echo "Running HubSpot setup"
-        hubspot_setup
-    else
-        # hubspot_setup installs these apps so while we're at hubspot this isn't necessary
-        install_homebrew
-        brew_cask_install google-chrome
-        brew_cask_install zoom
-        #brew_cask_install openjdk
-    fi
+if ${WORK_ENV} ; then
+    run_brew_bundle "${JJR_HOME}/.config/Brewfile.work"
+fi
 
 
-    echo "Installing apps with brew cask"
+echo ""
+echo "Setup done!"
+echo ""
+echo ""
+echo "Other things to manully install and set up:"
+echo
+echo "- Set up external keyboard modifiers"
+echo "- Set tab to focus all input controls in System Settings -> Keyboard -> Keyboard Navigation"
+echo "- customize date and time format - 24h, short date YYYY-MM-DD. System Settings -> General -> Date Time"
+echo "- Enable three finger trackpad dragging in Accessibility -> Mouse & Tracking Mouse https://support.apple.com/en-us/HT204609"
+echo "- Set iTerm preferences folder to ${JJR_HOME}/.config/iterm2. Be sure to set 'Save Changes' to Manual until you quit and have it load the old prefs or they will get clobbered"
+echo "- Set Alfred preferences folder to ${JJR_HOME}/.config/alfred"
+echo "- Give hammerspoon access to move around windows in Security & Privacy properties Accessibility"
+echo "- Set Alfred activation key - https://mail.google.com/mail/u/0/#search/alfred+power+pack/FMfcgxwCgphtpDPXWfsZClWlfWTQWRxM"
+echo "- Give Alfred Snippets Accessibility access. First enable snippets in the Alfred preferences, then follow instructions"
+echo "- Todoist needs to be installed from the App Store"
+echo "- Give emacs full disk access in Privacy https://medium.com/@holzman.simon/emacs-on-macos-catalina-10-15-in-2019-79ff713c1ccc "
+echo "- Downliad Elgato FaceCam 'Camera Hub' software - https://www.elgato.com/en/downloads"
+echo ""
+echo "Music software setup - https://docs.google.com/document/d/1vfKXBZr6PrctjJdxzqQ6CK69AZTAY1PvexdZD4MI2zg/edit"
+echo ""
+echo "Other apps you've found useful in the past"
+echo "- Blackmagic Disk Speed Test - for testing USB drive and cable speeds"
+echo 
 
-    brew_cask_install iterm2
-    brew_cask_install vlc
-    brew_cask_install hammerspoon
-    brew_cask_install alfred
-    brew_cask_install jetbrains-toolbox
-    brew_cask_install grandperspective
-    brew_cask_install font-droid-sans-mono-nerd-font
-    brew_cask_install elgato-stream-deck
-    
-    # nerdy stuff
-    # brew_cask_install docker
-
-    # brew_cask_install macvim 
-    # brew_cask_install flip4mac
-    # brew_cask_install imagemagick
-    # brew_cask_install flux
-    
-    echo "Installing brew apps"
-    brew_install diffutils go gawk binutils ack ag aspell gnutls ispell jq libxml2 maven mtr ncdu pstree scala v8 tmux awscli python watch wget git gzip bash gdb zsh unzip rsync openssh file-formula less coreutils fzf z libcouchbase pssh libdvdcss htop ed wdiff grep gnu-which gnu-tar gnu-sed gnu-indent findutils ffmpeg
-    brew_install bat fd gh grip lsd ripgrep television mkcert
-    brew_install pyenv pyenv-virtualenv node nvm deno uv sesh zoxide obsidian lazygit
-    # don't need with Vocaster
-    # blackhole-2ch
-
-    brew_install vim
-    brew link vim
-
-    brew install mas # mac app store CLI interface https://github.com/mas-cli/mas
-    brew install balance-lock # keeps caldigit ps4 from switching audio left or right
-
-    #install_ruby
-
-    if $HOME_ENV ; then
-        brew_cask_install musescore
-        brew_cask_install native-access
-        brew_cask_install discord
-        brew_cask_install steam
-        brew_cask_install handbrake
-    fi
-
-    if ! $HOME_ENV ; then
-        brew_cask_install loom
-    fi
-    
-    # setup zsh
-    # https://github.com/sorin-ionescu/prezto
-
-    if [ ! -d "${JJR_HOME}/.zprezto" ] ; then
-        echo "Installing .zprezto"
-        git clone --recursive https://github.com/sorin-ionescu/prezto.git "${JJR_HOME}/.zprezto"
-
-        for rcfile in "${JJR_HOME}"/.zprezto/runcoms/^README.md(.N); do
-            ln -s "$rcfile" "${JJR_HOME}/.${rcfile:t}"
-        done
-    fi
-
-    echo "Other things to manully install and set up"
-    echo
-    echo "- Set up external keyboard modifiers"
-    echo "- Set tab to focus all input controls in Keyboard -> Shortcut"
-    echo "- customize date and time format - 24h, short date YYYY-MM-DD"
-    echo "- Enable three finger trackpad dragging in Accessibility -> Mouse & Tracking Mouse https://support.apple.com/en-us/HT204609"
-    echo "- Set iTerm preferences folder to ~/.dotfiles/.config/iterm2. Be sure to set 'Save Changes' to Manual until you quit and have it load the old prefs or they will get clobbered"
-    echo "- download script for iterm2 to react to OSX theme changes https://gist.github.com/jamesmacfie/2061023e5365e8b6bfbbc20792ac90f8"
-    echo "- Give hammerspoon access to move around windows in Security & Privacy properties Accessibility"
-    echo "- Set Alfred activation key - https://mail.google.com/mail/u/0/#search/alfred+power+pack/FMfcgxwCgphtpDPXWfsZClWlfWTQWRxM"
-    echo "- Set Alfred preferences folder to ~/.dotfiles/.config/alfred"
-    echo "- Give Alfred Snippets Accessibility access. First enable snippets in the Alfred preferences, then follow instructions"
-    echo "- Todoist needs to be installed from the App Store"
-    echo "- Give emacs full disk access in Privacy https://medium.com/@holzman.simon/emacs-on-macos-catalina-10-15-in-2019-79ff713c1ccc "
-    echo "- Downliad Elgato FaceCam 'Camera Hub' software - https://www.elgato.com/en/downloads"
-    echo ""
-    echo "Music software setup - https://docs.google.com/document/d/1vfKXBZr6PrctjJdxzqQ6CK69AZTAY1PvexdZD4MI2zg/edit"
-    echo ""
-    echo "Other apps you've found useful in the past"
-    echo "- Blackmagic Disk Speed Test - for testing USB drive and cable speeds"
-    echo 
+if ${WORK_ENV} ; then
     echo "HubSpot setup"
     echo "Copy 'eng' directory over from old laptop"
     echo "Install latest Intellij CE using JetBrains Toolbox"
     echo "Launch Intellij and install plugins (hubspot, material theme)"
-    
-
-
-else #ubuntu
-    if [ "$USER" != "root" ] ; then
-        echo "This command must be run with root privlidges."
-        exit 1
-    fi
-
-    # check if its ubuntu and find release name
-    if ! . /etc/lsb-release ; then
-        echo "error reading release information from /etc/lsb-release"
-        exit 1
-    fi
-
-    UBUNTU_RELEASE_NAME=$(echo $DISTRIB_CODENAME)
-
-    function is_apt_source_installed()
-    {
-        if ! egrep "$1.*${UBUNTU_RELEASE_NAME}" /etc/apt/sources.list 2>&1 > /dev/null && ! grep "$1.*${UBUNTU_RELEASE_NAME}" /etc/apt/sources.list.d/* 2>&1 > /dev/null ; then
-            return 1
-        fi
-    }
-
-
-    echo "Looks like we're on Linux"
-    install_dropbox
-    link_home_dir
-    install_ruby
-
-    # 3rd party codecs and non-free media packages
-    if ! is_apt_source_installed "medibuntu" && false ; then
-        echo "Medibuntu apt sources not found.  Downloading"
-        wget http://www.medibuntu.org/sources.list.d/$(lsb_release -cs).list  --output-document=/etc/apt/sources.list.d/medibuntu.list
-        apt-get -q update
-        apt-get --yes -q --allow-unauthenticated install medibuntu-keyring
-        RUN_APT_UPDATE="1"
-    else
-        echo "Medibuntu apt sources already installed"
-    fi
-
-    # doesn't work with natty yet Friday, May 20, 2011
-    # echo "Installing bisigi themes repository."
-    # echo "Go to http://www.bisigi-project.org/ for awesome themes"
-    # sudo add-apt-repository ppa:bisigi/ppa && RUN_APT_UPDATE="1"
-
-    echo "Installing handbrake DVD ripper repository"
-    add-apt-repository http://ppa.launchpad.net/stebbins/handbrake-releases/ubuntu && RUN_APT_UPDATE=1
-
-    # dropbox
-    #if ! is_apt_source_installed "getdropbox" ;  then
-    #    echo "Dropbox apt sources not found. Installing"
-    #    DROPBOX_LIST="/etc/apt/sources.list.d/getdropbox.list"
-    #    echo "deb http://linux.getdropbox.com/ubuntu intrepid main" > ${DROPBOX_LIST}
-    #    RUN_APT_UPDATE="1"
-    #else
-    #    echo "Dropbox apt sources already installed"
-    #fi
-
-    # did anything get updated?
-    if [ -n "$RUN_APT_UPDATE" ] ; then
-        apt-get update
-    fi
-
-
-    #############################################################
-    ##
-    ## Install custom packages
-    ##
-    #############################################################
-    CUSTOM_PACKAGES=(
-        "nvidia-current"
-        "xubuntu-desktop"
-        "xfce4-goodies"
-        "synaptic"
-        "gnome-tweak-tool"
-        "unity-tweak-tool"
-        "emacs" #seriously? how is this not by default?
-        #"pulseaudio pavucontrol paprefs padevchooser" # pulse audio preference dialogs etc
-        #"pulseaudio-module-raop" # pulse streaming to airport express
-        "gnome-alsamixer"
-        "xkbset" # for using keyboard for mouse buttons
-        "disper" # for autodetecting display setup
-        "powertop"
-        "mplayer"
-        "vim"
-        "maven2"
-        "rpm" # just in case
-        "preload"  # learns what programs you like and keeps them in memory
-        "libdvdcss2" # to play dvds
-        "w32codecs" # to play some windows movies
-        "gwibber" # twitter and facebook status client
-        "wmctrl" # command line control of window managers
-        "xbindkeys" # keybindings
-        "openssh-server"
-        "ntp"
-        "curl"
-        "msttcorefonts"
-        "ttf-ubuntu-title"
-        "openclipart"
-        #"openoffice.org" # already installed with ubuntu
-        #"gnome-do"  # quicksilver for linux, trying out unity
-        "libstdc++5" # makes webex connect work in firefox
-        "unison"
-        "subversion"
-        "git-all"
-        "xinput"
-        "tree" # like ls -r but better
-        # "alsa-oss" # bridge between old school oss sound and alsa
-        "nmap"
-        "ldap-utils"
-        "meld"
-        "xmacro"
-        "skype"
-        "tofrodos" # dos2unix and stuff
-        "lame"
-        "flac"
-        "cuetools"
-        "shntools" # splitting flac files
-        "id3v2" # splitting flac files
-        "xclip"
-        "vlc"
-        "bisigi-themes" #awesome themes from http://www.bisigi-project.org/
-        "granola-gui" #http://grano.la/  Transparent power management to save your battery and the world
-        "xflux" # sets monitor color based on time of day
-        # medibuntu stuff http://medibuntu.org/repository.php
-        "app-install-data-medibuntu"
-        "apport-hooks-medibuntu"
-        # dvd ripper
-        "handbrake-gtk"
-        "pandoc" # for jumpapp
-    )
-
-    for PACKAGE in "${CUSTOM_PACKAGES[@]}" ; do
-        if ! dpkg-query -s ${PACKAGE} 2>&1 > /dev/null ; then
-            echo "Package '${PACKAGE}' not found, installing"
-            apt-get --auto-remove --allow-unauthenticated --yes install ${PACKAGE}
-        else
-            echo "Package '${PACKAGE}' already installed"
-        fi
-    done
-
-
-    # clean up
-    apt-get autoremove
-
-
-    echo "\n******\n"
-    echo "You should use jumpapp to configure application switching keys"
-    echo "Now that you are done, use gnome-tweak-tool to set up alt/win keys and such for mac keyboards if necessary"
 fi
 
-install_python_packages
 
 chmod +x ${HOME}/./.bin/*
 chmod +x ${HOME}/.tmux/plugins/tpm/tpm
@@ -487,4 +271,5 @@ chmod +x ${HOME}/.tmux/plugins/tpm/tpm
 # OK, twice now I had to do ^^. Not sure what the issue is but deleteing and recloning just works
 # prefix + I shows no visible signs of doing anything so wait about 20 seconds
 
+echo ""
 echo "All done. Share and enjoy!"

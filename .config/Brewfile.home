@@ -1,0 +1,5 @@
+cask "musescore"
+cask "native-access"
+cask "discord"
+cask "steam"
+cask "handbrake-app"
