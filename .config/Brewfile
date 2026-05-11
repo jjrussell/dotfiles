@@ -50,6 +50,8 @@ brew "gnu-sed"
 brew "gnu-indent"
 brew "findutils"
 brew "ffmpeg"
+brew "appcleaner"
+brew "aldente" #battery health
 
 # Modern CLI tools
 brew "bat"
