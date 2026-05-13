@@ -103,7 +103,7 @@ hs.hotkey.bind(mashshift, 'l',
 -- claude code executive assistant 
 hs.hotkey.bind(mashshift, 'r', 
                function() 
-                  os.execute('~/.bin/save-transcript.sh') 
+                  os.execute('~/ea/scripts/save-transcript.sh') 
 
                end
 )
@@ -158,7 +158,7 @@ hs.hotkey.bind(mash, 'K', hs.grid.pushWindowTopHalf)
 -- hs.hotkey.bind(minimash, 'H', hs.grid.pushWindowLeftAndResize)
 -- hs.hotkey.bind(minimash, 'L', hs.grid.pushWindowRightAndResize)
 hs.hotkey.bind(mash, 'H', hs.grid.pushWindowLeftThird)
-hs.hotkey.bind(mash, 'J', hs.grid.pushWindowMiddleThird)
+hs.hotkey.bind(mash, 'J', hs.grid.pushWindowMiddle)
 hs.hotkey.bind(mash, 'L', hs.grid.pushWindowRightThird)
 
 hs.hotkey.bind(minimash, 'H', hs.grid.pushWindowLeft)
@@ -245,7 +245,7 @@ myTwoStepMode:bind("shift", "D", function()
 		      myTwoStepMode:exit() 
 end)
 myTwoStepMode:bind("", "S", function()
-		      hs.grid.pushWindowMiddleThird()
+		      hs.grid.pushWindowMiddle()
 		      myTwoStepMode:exit() 
 end)
 myTwoStepMode:bind("", "W", function()

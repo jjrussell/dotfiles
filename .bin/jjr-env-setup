@@ -106,6 +106,7 @@ function install_homebrew(){
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
         
     fi
+    brew tap d12frosted/emacs-plus
 }
 
 
@@ -121,7 +122,7 @@ function install_ruby() {
 function install_emacs() {
     # emacs-plus and duti are in the Brewfile
     if [ -d /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app ] && [ ! -e /Applications/Emacs.app ] ; then
-        cp -R /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app /Applications/Emacs.app
+        cp -Rv /opt/homebrew/Cellar/emacs-plus@30/*/Emacs.app /Applications/Emacs.app
     fi
     
     if [ ! -d ~/.emacs.d ] ; then
@@ -137,9 +138,11 @@ function install_emacs() {
     if [ -d "${HOME}/.bin/EmacsClient.app" ] ; then
         ln -sfv ${HOME}/.bin/EmacsClient.app /Applications/EmacsClient.app
         /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/EmacsClient.app
-        for ext in .el .py .js .ts .tsx .jsx .java .rb .rs .go .c .h .cpp .sh .zsh .bash .yml .yaml .json .toml .xml .css .scss .sql .md .txt .cfg .conf .ini .log .org; do
-            duti -s org.gnu.emacsclient "$ext" editor
-        done
+        # for ext in .el .py .js .ts .java .rb .rs .go .c .h .cpp .sh .zsh .bash .yml .yaml .json .toml .xml .css .scss .sql .md .txt .cfg .conf .ini .log .org; do
+        #     echo "Registering EmacsClient for extension $ext"
+        #     duti -s org.gnu.emacsclient "$ext" editor
+        # done
+        
         duti -s org.gnu.emacsclient public.plain-text editor
         duti -s org.gnu.emacsclient public.source-code editor
         duti -s org.gnu.emacsclient net.daringfireball.markdown editor
@@ -152,7 +155,7 @@ function mac_settings(){
     echo "OSX specific settings"
     # faster key repeats. Usually have to log out and log in to take effect
     # normal minimum is 15 (225 ms)
-    defaults write -g InitialKeyRepeat -int 10 
+    defaults write -g InitialKeyRepeat -int 15
     # or 0
     defaults write -g KeyRepeat -int 1
 
@@ -160,7 +163,8 @@ function mac_settings(){
     defaults write -g ApplePressAndHoldEnabled -bool false
 
     # echo "Overlaying the directory structure backed up by jjr-env-backup onto the OSX config directories"
-
+    defaults write com.apple.AppleMultitouchTrackpad Dragging -bool true
+    defaults write com.apple.AppleMultitouchTrackpad TrackpadThreeFingerDrag -bool true
 }
 
 
@@ -213,6 +217,7 @@ fi
 install_homebrew
 install_zprezto
 link_home_dir
+install_emacs
 mac_settings
 
 echo "Running brew bundle"
@@ -240,7 +245,7 @@ echo "- Enable three finger trackpad dragging in Accessibility -> Mouse & Tracki
 echo "- Set iTerm preferences folder to ${JJR_HOME}/.config/iterm2. Be sure to set 'Save Changes' to Manual until you quit and have it load the old prefs or they will get clobbered"
 echo "- Set Alfred preferences folder to ${JJR_HOME}/.config/alfred"
 echo "- Give hammerspoon access to move around windows in Security & Privacy properties Accessibility"
-echo "- Set Alfred activation key - https://mail.google.com/mail/u/0/#search/alfred+power+pack/FMfcgxwCgphtpDPXWfsZClWlfWTQWRxM"
+echo "- Set Alfred activation key - https://mail.google.com/mail/u/0/#search/alfred+power+pack/FMfcgzGwHpTqJBnbbpMGCwcGWRNwbSvV"
 echo "- Give Alfred Snippets Accessibility access. First enable snippets in the Alfred preferences, then follow instructions"
 echo "- Todoist needs to be installed from the App Store"
 echo "- Give emacs full disk access in Privacy https://medium.com/@holzman.simon/emacs-on-macos-catalina-10-15-in-2019-79ff713c1ccc "
@@ -261,7 +266,16 @@ fi
 
 
 chmod +x ${HOME}/./.bin/*
+if [ ! -d ~/.tmux/plugins/tpm ] ; then
+  git clone https://github.com/tmux-plugins/tpm ~/.tmux/plugins/tpm
+fi
 chmod +x ${HOME}/.tmux/plugins/tpm/tpm
+
+if [ ! -d ~/.vim/bundle/Vundle.vim ] ; then
+  git clone https://github.com/VundleVim/Vundle.vim.git ~/.vim/bundle/Vundle.vim
+fi
+
+  
 # pushd ${HOME}/.tmux
 # chmod +x $(find . -name *.sh -o -name *.tmux)
 #popd

@@ -62,11 +62,11 @@ function hs.grid.pushWindowLeftThird()
    end)
 end
 
-function hs.grid.pushWindowMiddleThird()
+function hs.grid.pushWindowMiddle()
    hs.grid.adjustWindow(function(f)
-         f.x = 4
+         f.x = 3
 	 f.y = 0
-         f.w = 4
+         f.w = 6
          f.h = 2
    end)
 end

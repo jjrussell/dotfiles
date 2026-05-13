@@ -26,3 +26,33 @@
 .config/github-copilot
 
 .bin/save-transcript.sh
+
+# HubSpot auto-populated skills
+.agents/skills/acceptance-tests/
+.agents/skills/browser/
+.agents/skills/chirp-cli/
+.agents/skills/chirp-fe-migration/
+.agents/skills/deploy-with-orion/
+.agents/skills/fe-blocks/
+.agents/skills/fe-component-guide/
+.agents/skills/fe-component-schema/
+.agents/skills/frontend-manual-testing/
+.agents/skills/grafana-metrics/
+.agents/skills/hubspot-insights/
+.agents/skills/logfetch/
+.agents/skills/marp-presentation/
+.agents/skills/mass-migration/
+.agents/skills/mill-local-dev/
+.agents/skills/orion-deploy-history/
+.agents/skills/pastes/
+.agents/skills/product-copy-rules/
+.agents/skills/shipping-code/
+.agents/skills/sidekick/
+.agents/skills/skill-creator/
+.agents/skills/sql-slow-query-debugger/
+.agents/skills/tblb/
+.agents/skills/testing-kafka/
+.agents/skills/testing-tq2/
+.agents/skills/trace-analysis/
+.agents/skills/vitess-mysql-migrations/
+.agents/skills/vitess-query/

@@ -1,5 +1,11 @@
+brew "maven"
+
 cask "musescore"
 cask "native-access"
 cask "discord"
 cask "steam"
 cask "handbrake-app"
+cask "zoom
+cask "google-chrome"
+cask "aldente"
+cask "appcleaner"
