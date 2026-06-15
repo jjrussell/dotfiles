@@ -628,7 +628,7 @@ __debug "Before Loading work stuff"
 
 # java setup
 if [ $(uname) = "Darwin" ] ; then
-    export JAVA_HOME="$(/usr/libexec/java_home 2>&1 > /dev/null)"
+    export JAVA_HOME="$(/usr/libexec/java_home 2>&1)"
 elif [ -r "$JJR_ENG/tools/jdk" ] ; then
     # set a reasonable JAVA_HOME if its not already set.
     export JAVA_HOME=${JAVA_HOME:-"$JJR_ENG/tools/jdk"}

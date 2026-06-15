@@ -23,9 +23,9 @@
 	<key>AdjustWindowForFontSizeChange</key>
 	<true/>
 	<key>AiMaxTokens</key>
-	<integer>400000</integer>
+	<integer>1050000</integer>
 	<key>AiModel</key>
-	<string>gpt-5.2</string>
+	<string>gpt-5.5</string>
 	<key>AiResponseMaxTokens</key>
 	<integer>128000</integer>
 	<key>AitermURL</key>
@@ -1574,12 +1574,18 @@
 			<key>Version</key>
 			<integer>2</integer>
 		</dict>
-		<key>0x7f-0x100000</key>
+		<key>0x7f-0x100000-0x33</key>
 		<dict>
 			<key>Action</key>
-			<integer>10</integer>
+			<integer>11</integer>
+			<key>Apply Mode</key>
+			<integer>1</integer>
+			<key>Escaping</key>
+			<integer>2</integer>
 			<key>Text</key>
-			<string>[3~</string>
+			<string>0x1b 0x7f</string>
+			<key>Version</key>
+			<integer>2</integer>
 		</dict>
 		<key>0x9-0x40000</key>
 		<dict>
