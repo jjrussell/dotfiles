@@ -8,3 +8,7 @@
 
 # Added by nex: https://git.hubteam.com/HubSpot/nex
 [ -e ~/.hubspot/shellrc ] && . ~/.hubspot/shellrc
+
+
+# Added by Antigravity CLI installer
+export PATH="/Users/jjrussell/.local/bin:$PATH"

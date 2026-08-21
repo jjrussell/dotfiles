@@ -12,3 +12,7 @@
 export MANPATH=/opt/local/share/man:$MANPATH
 # Finished adapting your MANPATH environment variable for use with MacPorts.
 export PATH=$PATH:$HOME/bin/traveling-tjsh
+
+
+# Added by Antigravity CLI installer
+export PATH="/Users/jjrussell/.local/bin:$PATH"

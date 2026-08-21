@@ -275,3 +275,7 @@ PATH=$PATH:$HOME/.rvm/bin # Add RVM to PATH for scripting
 
 # Added by nex: https://git.hubteam.com/HubSpot/nex
 . ~/.hubspot/shellrc
+
+
+# Added by Antigravity CLI installer
+export PATH="/Users/jjrussell/.local/bin:$PATH"
