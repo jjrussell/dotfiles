@@ -1,59 +1,180 @@
 #!/usr/bin/env bash
-# Scan tmux panes for AI permission prompts (Claude Code, Gemini, etc.)
-# and check for other status conditions.
+# Scan tmux panes for AI agent status (Claude Code, OpenCode).
+# Detects state from terminal content patterns — works even when the
+# agent runs inside a nested tmux (herdr) or was launched via a wrapper.
 #
 # Usage: called from tmux status-right, e.g.:
-#   set -g status-right '#(tmux-ai-status) | %H:%M'
-#   set -g status-interval 5
+#   set -g status-right '#(~/.bin/tmux-ai-status)'
+#   set -g status-interval 10
 
 TRANSCRIPT_DIR="$HOME/ea/inbox/transcripts"
 
-# Outputs a status segment if any AI pane is waiting for input.
-check_ai_waiting() {
-  local pattern="Do you want to proceed|action required"
-  local waiting_count=0
-  local waiting_windows=()
+# Per-window aggregation of agent state characters, keyed by "session:window".
+# * = working, X = asking (permission/review), _ = idle
+declare -A WINDOW_STATES
 
-  while IFS= read -r pane_info; do
-    local session="${pane_info%%:*}"
-    local rest="${pane_info#*:}"
-    local window="${rest%%:*}"
-    local pane="${rest##*:}"
-    local pane_target="${session}:${window}.${pane}"
+classify_pane() {
+    local content="$1"
+    local tail
+    tail=$(echo "$content" | tail -20)
 
-    local content
-    content=$(tmux capture-pane -t "$pane_target" -p 2>/dev/null) || continue
-
-    if echo "$content" | grep -qiE "$pattern"; then
-      waiting_count=$((waiting_count + 1))
-      local win_key="${session}:${window}"
-      if [[ ! " ${waiting_windows[*]} " =~ " ${win_key} " ]]; then
-        waiting_windows+=("$win_key")
-      fi
+    # --- Claude Code ---
+    # Note: the permission dialog pushes the normal footer ("auto mode on", etc.)
+    # off screen, so also gate on "Tab to amend" which is unique to the tool-
+    # approval dialog ("Esc to cancel · Tab to amend · ctrl+e to explain").
+    if echo "$tail" | grep -qE '(manual|auto) mode on|accept edits on|for shortcuts|for agents$|Tab to amend'; then
+	if echo "$tail" | grep -qE 'Cooking|Thinking|esc to interrupt'; then
+	    echo "claude:working"
+	elif echo "$tail" | grep -qE 'Do you want to proceed|action required|Allow .*\?|Deny|Tab to amend'; then
+	    echo "claude:permission"
+	else
+	    echo "claude:idle"
+	fi
+	return 0
     fi
-  done < <(tmux list-panes -a -F "#{session_name}:#{window_index}:#{pane_index}" 2>/dev/null)
 
-  if [ ${#waiting_windows[@]} -gt 0 ]; then
-    local win_nums=()
-    for w in "${waiting_windows[@]}"; do
-      win_nums+=("$w")
-    done
-    local label
-    label=$(IFS=,; echo "${win_nums[*]}")
-    printf "#[fg=colour232,bg=colour220,bold] ⚡ AI Needs help: %s #[default]" "$label"
-  fi
+    # --- OpenCode ---
+    # The brand string is in the bottom status bar; fullscreen dialogs hide it,
+    # so also match the permission dialog's distinctive pattern.
+    # "esc dismiss" appears in AskUserQuestion / multi-select prompts waiting for input.
+    if echo "$tail" | grep -qF 'OpenCode'; then
+	if echo "$tail" | grep -qF 'esc interrupt'; then
+	    echo "opencode:working"
+	elif (echo "$tail" | grep -qF 'Permission required' && echo "$tail" | grep -qF 'Allow once') || \
+	     echo "$tail" | grep -qF 'esc dismiss'; then
+	    echo "opencode:permission"
+	else
+	    echo "opencode:idle"
+	fi
+	return 0
+    fi
+
+    return 1
 }
 
-# Outputs a status segment if there are transcripts waiting to be processed.
+check_agents() {
+    local working_claude=0 working_opencode=0
+    local attention_count=0
+    local attention_panes=()
+    local idle_claude=0 idle_opencode=0
+
+    while IFS= read -r pane_target; do
+	local content
+	content=$(tmux capture-pane -t "$pane_target" -p 2>/dev/null) || continue
+
+	local result
+	result=$(classify_pane "$content") || continue 2>/dev/null
+
+	local agent="${result%%:*}"
+	local state="${result##*:}"
+
+	local wkey="${pane_target%.*}"
+
+	case "$state" in
+	    working)
+		[ "$agent" = "claude" ] && working_claude=$((working_claude + 1)) || working_opencode=$((working_opencode + 1))
+		WINDOW_STATES["$wkey"]+="*"
+		;;
+	    permission|review)
+		attention_count=$((attention_count + 1))
+		attention_panes+=("$pane_target")
+		WINDOW_STATES["$wkey"]+="X"
+		;;
+	    idle)
+		[ "$agent" = "claude" ] && idle_claude=$((idle_claude + 1)) || idle_opencode=$((idle_opencode + 1))
+		WINDOW_STATES["$wkey"]+="_"
+		;;
+	esac
+    done < <(tmux list-panes -a -F "#{session_name}:#{window_index}.#{pane_index}" 2>/dev/null)
+
+    if [ "$attention_count" -gt 0 ]; then
+	local label
+	label=$(IFS=,; echo "${attention_panes[*]}")
+	printf "#[fg=colour232,bg=colour220,bold] %s stuck: %s #[default]" "$attention_count" "$label"
+    fi
+
+    local working=$((working_claude + working_opencode))
+    if [ "$working" -gt 0 ]; then
+	local parts=()
+	[ "$working_claude" -gt 0 ] && parts+=("${working_claude}cc")
+	[ "$working_opencode" -gt 0 ] && parts+=("${working_opencode}oc")
+	local detail
+	#detail=$(IFS=+; echo "${parts[*]}")
+	printf "#[fg=colour232,bg=colour114,bold] %s working %s #[default]" "$working" "$detail"
+    fi
+
+    local idle=$((idle_claude + idle_opencode))
+    if [ "$idle" -gt 0 ]; then
+	local parts=()
+	[ "$idle_claude" -gt 0 ] && parts+=("${idle_claude}cc")
+	[ "$idle_opencode" -gt 0 ] && parts+=("${idle_opencode}oc")
+	local detail
+	#detail=$(IFS=+; echo "${parts[*]}")
+	printf "#[fg=colour248] %s idle %s #[default]" "$idle" "$detail"
+    fi
+}
+
+update_window_names() {
+    # Prefix each window name with "(states) " where states is one char per
+    # agent in that window, in pane order (stable slot per agent). Windows with
+    # no agents have any existing prefix stripped. Only renames when changed.
+    local fmt
+    fmt=$'#{session_name}:#{window_index}\t#{window_name}'
+    while IFS=$'\t' read -r wkey wname; do
+	local states="${WINDOW_STATES[$wkey]}"
+	local base
+	base=$(printf '%s' "$wname" | sed -E 's/^\([_X*]+\) //')
+	local newname
+	if [ -n "$states" ]; then
+	    newname="(${states}) ${base}"
+	else
+	    newname="$base"
+	fi
+	if [ "$newname" != "$wname" ]; then
+	    tmux rename-window -t "$wkey" "$newname" 2>/dev/null
+	fi
+    done < <(tmux list-windows -a -F "$fmt" 2>/dev/null)
+}
+
+goto_first_stuck() {
+    # Switch the current client to the session/window/pane of the first stuck
+    # (permission/review) agent pane. Does nothing if none are stuck.
+    while IFS= read -r pane_target; do
+	local content
+	content=$(tmux capture-pane -t "$pane_target" -p 2>/dev/null) || continue
+
+	local result
+	result=$(classify_pane "$content") || continue 2>/dev/null
+
+	local state="${result##*:}"
+	case "$state" in
+	    permission|review)
+		tmux switch-client -t "$pane_target" 2>/dev/null
+		return 0
+		;;
+	esac
+    done < <(tmux list-panes -a -F "#{session_name}:#{window_index}.#{pane_index}" 2>/dev/null)
+    return 0
+}
+
 check_transcripts() {
-  [ -d "$TRANSCRIPT_DIR" ] || return
-  local count
-  count=$(find "$TRANSCRIPT_DIR" -maxdepth 1 -type f -not -name '.*' | wc -l | tr -d ' ')
-  if [ "$count" -gt 0 ]; then
-    printf "#[fg=colour232,bg=colour75,bold] 📄 %s transcript%s #[default]" \
-      "$count" "$( [ "$count" -eq 1 ] && echo "" || echo "s" )"
-  fi
+    [ -d "$TRANSCRIPT_DIR" ] || return
+    local count
+    count=$(find "$TRANSCRIPT_DIR" -maxdepth 1 -type f -not -name '.*' | wc -l | tr -d ' ')
+    if [ "$count" -gt 0 ]; then
+	printf "#[fg=colour232,bg=colour75,bold] %s transcript%s #[default]" \
+	       "$count" "$( [ "$count" -eq 1 ] && echo "" || echo "s" )"
+    fi
 }
 
-check_ai_waiting
+case "${1:-}" in
+    goto-stuck)
+	goto_first_stuck
+	exit 0
+	;;
+esac
+
+check_agents
+update_window_names
 check_transcripts
+exit 0

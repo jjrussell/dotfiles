@@ -692,9 +692,32 @@ git_prompt_info() {
     echo "git:($(current_branch)$(parse_git_dirty))"
 }
 
+git-stale-worktrees() {
+    local current_wt=""
+    while IFS= read -r line; do
+        if [[ "$line" == worktree\ * ]]; then
+            current_wt="${line#worktree }"
+        elif [[ "$line" == branch\ * ]]; then
+            local b="${line#branch refs/heads/}"
+            [[ $(git branch -vv --list "$b") == *": gone]"* ]] && echo "$current_wt"
+        fi
+    done < <(git worktree list --porcelain)
+}
+
+# Set up git worktree(s) for a new task and cd into the result.
+# See ~/.bin/start-task.sh for the full behavior. The script prints the
+# directory to land in on stdout; everything else goes to stderr.
+start-task() {
+    local dest
+    dest="$(~/.bin/start-task.sh "$@")" || return $?
+    if [ -n "$dest" ] && [ -d "$dest" ]; then
+        cd "$dest"
+    fi
+}
+
 # switch to either develop or master, get latest and rebase the branch I was on with that branch we just pulled
+# if the branch is fully merged, delete it instead of rebasing
 grb() {
-    # set -x
     if [ -z "$TARGET_BRANCH" ] ; then
         local TARGET_BRANCH=master
         if git branch | egrep -q "^[ ]*develop$" && [ ! "$(current_branch)" = "develop" ]  ; then
@@ -704,27 +727,48 @@ grb() {
 
     local original_branch=$(current_branch)
 
-    # If squash and merge is used on github it will create a new commit that will not be present
-    # on the local branch and confuses rebase.
-    echo "-------------------------------"
-    echo "Pulling latest for branch $original_branch"
-    echo "-------------------------------"
-    git pull origin $original_branch || echo "this branch hasn't been pushed yet. No remote updates to fetch"
-    echo "-------------------------------"
-    echo "Checking out $TARGET_BRANCH"
-    echo "-------------------------------"
-    git checkout $TARGET_BRANCH || return 1
-    echo "-------------------------------"
-    echo "Pulling $TARGET_BRANCH"
-    echo "-------------------------------"
-    git pull origin $TARGET_BRANCH || return 1
-
-    if [ "$original_branch" != "master" ] ; then
+    if [ "$original_branch" = "$TARGET_BRANCH" ] ; then
+        echo ""
+        echo "Already on $TARGET_BRANCH — fetching, pruning, and pulling"
         echo "-------------------------------"
+        git fetch --prune origin && git pull origin $TARGET_BRANCH
+        return
+    fi
+    echo ""
+    echo "Fetching and pruning remote refs"
+    echo "-------------------------------"
+    git fetch --prune origin
+
+    local unmerged=$(git log --oneline $TARGET_BRANCH..$original_branch)
+
+    if [ -z "$unmerged" ] ; then
+        echo ""
+        echo "$original_branch is fully merged into $TARGET_BRANCH — deleting"
+        echo "-------------------------------"
+        git checkout $TARGET_BRANCH || return 1
+        git pull origin $TARGET_BRANCH || return 1
+        git branch -d $original_branch || {
+            echo "Remote ref gone after confirmed merge — force-deleting $original_branch"
+            git branch -D $original_branch
+        }
+    else
+        echo ""
+        echo "Pulling latest for branch $original_branch"
+        echo "-------------------------------"
+        git pull origin $original_branch || echo "Branch not pushed yet or remote already deleted — skipping"
+        echo ""
+        echo "Checking out $TARGET_BRANCH"
+        echo "-------------------------------"
+        git checkout $TARGET_BRANCH || return 1
+        echo ""
+        echo "Pulling $TARGET_BRANCH"
+        echo "-------------------------------"
+        git pull origin $TARGET_BRANCH || return 1
+        echo ""
         echo "Switching back to $original_branch"
         echo "-------------------------------"
         git checkout $original_branch || return 1
-        echo "-------------------------------"
+        echo ""
         echo "Rebasing $original_branch onto $TARGET_BRANCH"
         echo "-------------------------------"
         git rebase $TARGET_BRANCH || return 1
@@ -1049,6 +1093,18 @@ export USER_EMAIL="${WORK_USERNAME}@hubspot.com"
 #[ -f /etc/bashrc ] && . /etc/bashrc
 #[ -f ~/.bash_local ] && . ~/.bash_local
 
+############################################################
+#
+#  opencode
+#
+############################################################
+
+# oh-my-openagent loads from the global config, so `opencode` runs it by default.
+# opencode only loads plugins from discovered config dirs (global/home/project .opencode),
+# NOT from OPENCODE_CONFIG/OPENCODE_CONFIG_DIR env vars, so a per-session opt-in alias
+# isn't possible. `bare` uses --pure for a clean, plugin-free session when needed.
+alias bare='opencode --pure'
+alias oc='opencode'
 ############################################################
 #
 #  Export environment variables

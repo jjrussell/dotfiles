@@ -59,12 +59,13 @@ local function launch_fn(app)
    return function() hs.application.launchOrFocus(app) end
 end
 
-hs.hotkey.bind({"alt"}, '1', launch_fn("iTerm"))
-
+-- hs.hotkey.bind({"alt"}, '1', launch_fn("iTerm"))
+hs.hotkey.bind({"alt"}, '1', launch_fn("kitty"))
+hs.hotkey.bind({"alt", "shift"}, '1', launch_fn("Conductor"))
 -- editors
 hs.hotkey.bind({"alt"}, '2', launch_fn("Emacs"))
-hs.hotkey.bind({"alt", "shift"}, '2', launch_fn("IntelliJ IDEA"))
-hs.hotkey.bind({"ctrl", "shift"}, '2', launch_fn("IntelliJ IDEA"))
+hs.hotkey.bind({"alt", "shift"}, '2', launch_fn("Emacs"))
+hs.hotkey.bind({"ctrl", "shift"}, '2', launch_fn("Emacs"))
 
 hs.hotkey.bind({"alt"}, '3', launch_fn("Finder"))
 hs.hotkey.bind({"alt"}, '4', launch_fn("Slack"))

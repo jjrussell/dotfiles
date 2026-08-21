@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+M2="$HOME/.m2/repository"
+
+# HSJF is published as a SNAPSHOT, so multiple timestamped jars accumulate in
+# ~/.m2.  Maven also keeps a "hubspot-java-format-2.x.0-SNAPSHOT.jar" symlink
+# that always points to the latest resolved snapshot — use that when present,
+# fall back to the newest timestamped jar otherwise.
+HSJF_DIR="$M2/com/hubspot/hubspot-java-format/2.5.0-SNAPSHOT"
+HSJF_JAR="$HSJF_DIR/hubspot-java-format-2.5.0-SNAPSHOT.jar"
+if [[ ! -f "$HSJF_JAR" ]]; then
+  HSJF_JAR=$(ls "$HSJF_DIR"/hubspot-java-format-*.jar 2>/dev/null | sort -V | tail -1)
+fi
+
+if [[ -z "$HSJF_JAR" || ! -f "$HSJF_JAR" ]]; then
+  echo "hsjf: could not find hubspot-java-format jar under $HSJF_DIR" >&2
+  exit 1
+fi
+
+# HSJF is a thin jar — it bundles the google-java-format classes it was built
+# against but not its transitive runtime deps (notably Guava).  We have to add
+# Guava ourselves.  Pick the newest jre variant available in the local repo.
+GUAVA_JAR=$(find "$M2/com/google/guava/guava" -name "guava-*-jre.jar" \
+              ! -name "*sources*" ! -name "*javadoc*" \
+            | sort -V | tail -1)
+
+if [[ -z "$GUAVA_JAR" ]]; then
+  echo "hsjf: could not find guava jar under $M2/com/google/guava" >&2
+  exit 1
+fi
+
+# HSJF reaches into JDK compiler internals (com.sun.tools.javac.*) to parse
+# and reprint Java ASTs.  These packages are encapsulated by default since
+# JDK 9, so we have to explicitly open them or the formatter throws
+# InaccessibleObjectException at startup.
+exec java \
+  --add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED \
+  --add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED \
+  --add-exports=jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED \
+  --add-exports=jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED \
+  --add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED \
+  --add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED \
+  -cp "$HSJF_JAR:$GUAVA_JAR" \
+  com.hubspot.hubspotjavaformat.Main \
+  "$@"

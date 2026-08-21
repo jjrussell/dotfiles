@@ -1,0 +1,8 @@
+{
+  "disabledHooks": {
+    "UserPromptSubmit": ["userpromptsubmit\\.py$"],
+    "PreToolUse": ["pretooluse\\.py$"],
+    "PostToolUse": ["posttooluse\\.py$"],
+    "Stop": ["stop\\.py$"]
+  }
+}

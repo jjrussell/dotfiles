@@ -7,7 +7,7 @@ slugforge*.json.gradle-enterprise/
 # Editor backup files
 *~
 *.~undo-tree~
-
+.eglot-java/
 # Claude Code config
 .claude/
 

@@ -1,0 +1,136 @@
+#############################################################
+##
+## kitty keybindings (tmux-style prefix hacks)
+## Note: 0x16 is your tmux prefix here
+##
+#############################################################
+
+# Unbind / override default tab navigation (map to "do nothing")
+# kitty has no pure "unbind", so map to a harmless action
+map cmd+0   no_op
+map cmd+1   no_op
+map cmd+2   no_op
+map cmd+3   no_op
+map cmd+4   no_op
+map cmd+5   no_op
+map cmd+6   no_op
+map cmd+7   no_op
+map cmd+8   no_op
+map cmd+9   no_op
+map cmd+t   no_op
+
+# Number keys (⌘0 to ⌘9) -> 0x16 + '0'..'9'
+map cmd+0 send_text all \x16\x30
+map cmd+1 send_text all \x16\x31
+map cmd+2 send_text all \x16\x32
+map cmd+3 send_text all \x16\x33
+map cmd+4 send_text all \x16\x34
+map cmd+5 send_text all \x16\x35
+map cmd+6 send_text all \x16\x36
+map cmd+7 send_text all \x16\x37
+map cmd+8 send_text all \x16\x38
+map cmd+9 send_text all \x16\x39
+
+# ⇧⌘N -> 0x16 + '-'
+map cmd+shift+n send_text all \x16\x2d
+
+# ⌘` -> 0x16 + 'o'
+map cmd+grave send_text all \x16\x6f
+
+# Word navigation / ESC sequences (ESC = 0x1b)
+# ⌘B -> ESC b
+map cmd+b send_text all \x1b\x62
+
+# ⌘D -> ESC d
+map cmd+d send_text all \x1b\x64
+
+# ⌘F -> ESC f
+map cmd+f send_text all \x1b\x66
+
+# ⌘K -> 0x16 + 'K'
+map cmd+k send_text all \x16\x4b
+
+# ⌘L -> 0x16 + ESC + ','
+map cmd+l send_text all \x16\x1b\x2c
+
+# ⌘N -> 0x16 + '|'
+map cmd+n send_text all \x16\x7c
+
+# ⌘P -> 0x16 + 'P'
+map cmd+p send_text all \x16\x50
+
+# ⌘R -> 0x16 + 'R'
+map cmd+r send_text all \x16\x52
+
+# ⌘T -> 0x16 + 'c'
+map cmd+t send_text all \x16\x63
+
+# ⌘Z -> 0x16 + 'z'
+map cmd+z send_text all \x16\x7a
+
+
+#############################################################
+##
+## Window / appearance
+##
+#############################################################
+
+# kitty doesn’t have Ghostty’s macos-titlebar-style, but you can
+# make the window blend nicely with transparency + blur.
+background_opacity 0.8
+background_blur    20
+
+# Window padding: horizontal=5px, vertical=0px
+window_padding_width 5 0
+
+# There is no direct "window-padding-balance" option in kitty.
+
+# Quick terminal-like behavior is different in kitty; no direct
+# toggle_quick_terminal equivalent, so omitting that section.
+
+
+#############################################################
+##
+## Mouse / clipboard / cursor
+##
+#############################################################
+
+# Click to move cursor: kitty always sends clicks to the app in
+# line/column terms; there isn’t a shell-prompt‑specific mode,
+# but this is the closest behavior out of the box.
+
+# Hide mouse pointer while typing: approximate
+mouse_hide_wait 0.5
+
+# Copy on select to clipboard
+copy_on_select clipboard
+
+# No direct equivalent of clipboard_paste_protection in kitty.
+
+# Cursor style
+cursor_shape block
+cursor_blink_interval 0
+
+
+#############################################################
+##
+## Shell integration
+##
+#############################################################
+
+# kitty has its own shell-integration scripts; there’s no direct
+# "shell-integration-features = no-cursor" toggle. Leave this
+# to kitty’s default or enable its integration separately.
+
+
+#############################################################
+##
+## Fonts
+##
+#############################################################
+
+font_family DroidSansM Nerd Font Mono
+font_size   12.0
+
+# Disable ligatures and enable slashed zero for this font
+font_features DroidSansM\ Nerd\ Font\ Mono -calt -liga +zero
