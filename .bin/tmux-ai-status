@@ -33,11 +33,41 @@ classify_pane() {
 	return 0
     fi
 
+    # --- OpenCode subagent detail view ---
+    # When you navigate INTO a running subagent to watch it, OpenCode swaps the
+    # normal footer ("esc interrupt ... ctrl+l commands") for the subagent's own
+    # transcript view. That view's status bar reads "Subagent (N of M)" and its
+    # right-side nav footer reads "Parent up  Prev left  Next right". None of the
+    # normal OpenCode markers below are on screen in this view, so without this
+    # branch the pane isn't detected as an agent at all — which is exactly the
+    # gap this handles. Checked before the normal OpenCode block because the
+    # "Subagent (N of M)" counter is unambiguous and should win outright.
+    #
+    # There is no "esc interrupt" bar in this view, so we can't read a
+    # working/idle indicator from it. But the only reason to be parked on this
+    # view is to watch a subagent that is actively running, so treat it as
+    # working. (Once the subagent finishes and the parent turn ends, the pane
+    # renders the normal footer again and the parent's real state is picked up.)
+    if echo "$tail" | grep -qE 'Subagent \([0-9]+ of [0-9]+\)' \
+	|| { echo "$tail" | grep -qE 'Parent[[:space:]]+up' && echo "$tail" | grep -qE 'Next[[:space:]]+right'; }; then
+	echo "opencode:working"
+	return 0
+    fi
+
     # --- OpenCode ---
-    # The brand string is in the bottom status bar; fullscreen dialogs hide it,
-    # so also match the permission dialog's distinctive pattern.
-    # "esc dismiss" appears in AskUserQuestion / multi-select prompts waiting for input.
-    if echo "$tail" | grep -qF 'OpenCode'; then
+    # Do NOT gate on the "OpenCode" brand string or the model name: the brand
+    # string only fits in wide panes (it's truncated off narrow/split panes),
+    # and the model name changes when the user switches models. Instead gate on
+    # OpenCode's own chrome, which is drawn at every width and for every model:
+    # the "ctrl+l" + "commands" footer. Those two tokens can wrap onto separate
+    # lines when the cwd path is long, so match them independently rather than as
+    # one string. capture-pane reads a pane's grid regardless of visibility, so
+    # this also works for panes hidden under a zoom or in a background window.
+    # State markers ("esc interrupt", "esc dismiss", "Permission required") also
+    # stand alone as triggers in case a fullscreen dialog hides the footer.
+    if echo "$tail" | grep -qF 'OpenCode' \
+	|| { echo "$tail" | grep -qF 'ctrl+l' && echo "$tail" | grep -qF 'commands'; } \
+	|| echo "$tail" | grep -qE 'esc interrupt|esc dismiss|Permission required'; then
 	if echo "$tail" | grep -qF 'esc interrupt'; then
 	    echo "opencode:working"
 	elif (echo "$tail" | grep -qF 'Permission required' && echo "$tail" | grep -qF 'Allow once') || \

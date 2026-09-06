@@ -19,6 +19,9 @@ map cmd+8   no_op
 map cmd+9   no_op
 map cmd+t   no_op
 
+# make shift+enter do newlines in opencode and other shell prompts instead of just enter
+map shift+enter send_text all \x1b\r
+
 # Number keys (⌘0 to ⌘9) -> 0x16 + '0'..'9'
 map cmd+0 send_text all \x16\x30
 map cmd+1 send_text all \x16\x31
@@ -128,9 +131,16 @@ cursor_blink_interval 0
 ## Fonts
 ##
 #############################################################
-
-font_family DroidSansM Nerd Font Mono
+# font_family DroidSansM Nerd Font Mono
 font_size   12.0
 
 # Disable ligatures and enable slashed zero for this font
 font_features DroidSansM\ Nerd\ Font\ Mono -calt -liga +zero
+
+
+# BEGIN_KITTY_FONTS
+font_family      family='DroidSansM Nerd Font Mono' postscript_name=DroidSansMNFM
+bold_font        auto
+italic_font      auto
+bold_italic_font auto
+# END_KITTY_FONTS

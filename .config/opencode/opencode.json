@@ -14,7 +14,7 @@
       "~/.dotfiles/.agents/**": "allow",
       "/tmp/**": "allow",
       "~/.m2/**": "allow",
-      "~/.hubspot/static-archive/**": "allow",
+      "~/.hubspot/**": "allow",
       "~/.codex/**": "allow"
     },
     "read": {
@@ -23,7 +23,7 @@
       "~/.dotfiles/.agents/**": "allow",
       "/tmp/**": "allow",
       "~/.m2/**": "allow",
-      "~/.hubspot/static-archive/**": "allow",
+      "~/.hubspot/**": "allow",
       "~/.codex/**": "allow"
     },
     "edit": {
