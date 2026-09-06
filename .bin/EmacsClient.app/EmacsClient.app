@@ -1,1 +1,0 @@
-/Users/jorussell/.bin/EmacsClient.app
