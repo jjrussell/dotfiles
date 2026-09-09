@@ -5,7 +5,7 @@ cask "native-access"
 cask "discord"
 cask "steam"
 cask "handbrake-app"
-cask "zoom
+cask "zoom"
 cask "google-chrome"
 cask "aldente"
 cask "appcleaner"

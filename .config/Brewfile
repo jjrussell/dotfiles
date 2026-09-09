@@ -1,5 +1,7 @@
 # Tap sources
+# Specifically for OSX
 tap "d12frosted/emacs-plus"
+brew "emacs-plus", args: ["with-xwidgets", "with-imagemagick"]
 
 # Core Utilities
 brew "diffutils"
@@ -78,7 +80,7 @@ brew "lazygit"
 brew "vim"
 brew "mas"
 brew "duti"
-brew "emacs-plus@30", args: ["with-xwidgets", "with-imagemagick"]
+
 
 # Casks
 cask "iterm2"
