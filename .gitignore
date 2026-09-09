@@ -12,6 +12,7 @@
 .fonts
 .gitconfig
 .gitignore_global
+
 # no peeking
 .secrets 
 .ssh
@@ -24,7 +25,10 @@
 .zlogout
 .tmux
 .config/github-copilot
-
+.config/herdr/*.log
+.config/herdr/session.json
+.config/herdr/release-notes.json
+.config/gh/hosts.yml
 .bin/save-transcript.sh
 
 # HubSpot auto-populated skills

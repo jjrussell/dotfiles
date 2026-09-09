@@ -65,8 +65,11 @@ function link_home_dir(){
         echo "It looks like your dotfiles aren't here yet. Go get them from https://github.com/jjrussell/dotfiles"
         exit 1
     fi
+    # These directories live in the repo for agent tooling only and should
+    # not be symlinked into the home directory.
+    local SKIP_DOTS=(".git" ".dot" ".omo" ".claude" ".agents")
     for DOT in `ls -A ${JJR_HOME}` ; do
-        if [ ! "${DOT}" = ".git" ] ; then
+        if [ -z "${SKIP_DOTS[(r)${DOT}]}" ] ; then
             if [ -e ${HOME}/$DOT ] && [ ! -h ${HOME}/$DOT ] ; then # exists and isn't already a symlink
                 mv -v ${HOME}/$DOT ${HOME}/$DOT.orig
                 RESOURCE=true

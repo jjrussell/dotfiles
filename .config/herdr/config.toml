@@ -1,0 +1,88 @@
+# herdr configuration — mapped from ~/.dotfiles/.tmux.conf
+#
+# Concept mapping:
+#   tmux session  ≈ herdr workspace  (top-level, shown in the sidebar)
+#   tmux window   ≈ herdr tab
+#   tmux pane     ≈ herdr pane
+#
+# No herdr equivalent (left out): synchronize-panes (tmux prefix+s),
+#   join-pane (prefix+M-j / M-J), tmux-floax floating pane, tmux-fzf-url
+#   (prefix+u), and "open paste buffer" (prefix+b).
+
+onboarding = false
+
+[theme]
+# Corollary to the tmux catppuccin setup: the osascript dark-mode detection +
+# prefix+T latte/mocha toggle. auto_switch follows the host terminal's
+# light/dark appearance automatically, so no manual toggle key is needed.
+name = "gruvbox"
+auto_switch = false
+dark_name = "catppuccin"
+light_name = "catppuccin-latte"
+
+[terminal]
+# tmux: set-option -g default-shell /bin/zsh ; default-command "/bin/zsh"
+default_shell = "/bin/zsh"
+
+[keys]
+# tmux: unbind C-b ; set -g prefix C-v
+prefix = "ctrl+v"
+
+# tmux: bind-key R source-file ~/.tmux.conf   (R == shift+r)
+reload_config = "prefix+shift+r"
+
+# --- tmux windows -> herdr tabs ---
+new_tab = "prefix+c"          # tmux: bind c new-window
+rename_tab = "prefix+comma"   # tmux: default prefix+, rename-window
+next_tab = "prefix+n"         # tmux: default next-window
+previous_tab = "prefix+p"     # tmux: default previous-window
+switch_tab = "prefix+1..9"    # tmux: default select-window 1..9
+
+# --- tmux-pain-control pane navigation (prefix + h/j/k/l) ---
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+
+# --- tmux-pain-control splits ---
+#   tmux `-` (split -v, stacked top/bottom) -> split_horizontal (minus key matches)
+#   tmux `|` (split -h, side by side)        -> split_vertical
+# herdr accepts `-` but not `|`, so prefix+v is the closest side-by-side key.
+split_horizontal = "prefix+minus"
+split_vertical = "prefix+v"
+
+# tmux defaults: kill-pane `x` (with confirm), zoom `z`
+close_pane = "prefix+x"
+zoom = "prefix+z"
+
+# --- tmux sessions -> herdr workspaces ---
+#   tmux sesh popup (prefix+K)        -> workspace_picker
+#   tmux rename-session (prefix+M-.)  -> rename_workspace
+workspace_picker = "prefix+w"
+rename_workspace = "prefix+shift+w"
+
+# tmux: bind G goto-stuck (jump to the AI agent needing attention).
+# herdr is agent-aware natively; goto opens its jump / attention navigator.
+goto = "prefix+g"
+
+# tmux: bind P — tv file picker, then `open` the selected file. Closest corollary.
+[[keys.command]]
+key = "prefix+f"
+type = "pane"
+command = "result=$(tv --ansi --input-header 'Files' files | awk '{print $NF}') && [ -n \"$result\" ] && open \"$result\""
+
+[session]
+# Corollary to tmux-resurrect + tmux-continuum (@continuum-restore 'on').
+# herdr's server persists sessions natively; this also resumes AI-agent panes
+# into their native conversations after a server restart.
+resume_agents_on_restore = true
+
+[ui]
+# tmux: pane-border-status top + pane-border-format (labels in pane borders)
+show_agent_labels_on_pane_borders = true
+# tmux: bind c new-window -n "new" creates immediately (no name prompt)
+prompt_new_tab_name = false
+
+agent_panel_sort = "priority"
+[ui.toast]
+delivery = "herdr"
