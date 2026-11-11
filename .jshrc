@@ -284,7 +284,7 @@ pathmunge "$HOME/.bin"
 
 # Make less case insensitive when searching and NEVER ring the bell
 # -R makes it display color characters so grep --color | less works
-# grep will disable color when attached to a pipe so you need --color=always
+# grep will disable color when attached to a pipe so use cgrep (--color=always)
 if [ -n "$LESS" ] ; then
     LESS="$LESS -i -Q -R"
 else
@@ -532,9 +532,10 @@ if [ -n "$INTERACTIVE" ] ; then
         alias psel='ps -e | less'
     fi
     if grep --version > /dev/null 2>&1 ; then
-        alias grep='grep --color=always -I'
-        alias egrep='egrep --color=always -I'
-        alias igrepm='grep --color=always -iI'
+        alias grep='grep --color=auto -I'
+        alias egrep='egrep --color=auto -I'
+        alias igrepm='grep --color=auto -iI'
+        alias cgrep='grep --color=always -I'
     fi
 
     #other aliases
@@ -627,14 +628,18 @@ __debug "Before Loading work stuff"
 #############################################################
 
 # java setup
-if [ $(uname) = "Darwin" ] ; then
-    export JAVA_HOME="$(/usr/libexec/java_home 2>&1)"
-elif [ -r "$JJR_ENG/tools/jdk" ] ; then
+if [ -e "$HOME/.hubspot/shellrc" ]; then
+    : # work: ~/.hubspot/shellrc sets JAVA_HOME via hs-java
+elif [ $(uname) = "Darwin" ]; then
+    _brew_jdk="${HOMEBREW_PREFIX:-/opt/homebrew}/opt/openjdk/libexec/openjdk.jdk/Contents/Home"
+    [ -d "$_brew_jdk" ] && export JAVA_HOME="$_brew_jdk"
+    unset _brew_jdk
+elif [ -r "$JJR_ENG/tools/jdk" ]; then
     # set a reasonable JAVA_HOME if its not already set.
     export JAVA_HOME=${JAVA_HOME:-"$JJR_ENG/tools/jdk"}
 fi
 
-[ -n "$JAVA_HOME" ] && pathmunge "$JAVA_HOME/bin" before
+[ -n "$JAVA_HOME" ] && [ -z "$JAVA17_HOME$JAVA21_HOME$JAVA25_HOME" ] && pathmunge "$JAVA_HOME/bin" before
 
 # for activemq build environment
 export MAVEN_OPTS="-Xmx3000m"

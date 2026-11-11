@@ -10,7 +10,7 @@ dofile(package.searchpath("grid", package.path))
 local homeDir = os.getenv("HOME")
 local log = hs.logger.new('jjr-init','info')
 local workFile = homeDir .. "/.hsenv"
-
+local isWork = hs.fs.attributes(homeDir .. "/.nex", "mode") == "directory"
 log.i('Initializing')
 
 --------------------------------------------------------------
@@ -31,7 +31,7 @@ local function fileExists(filename)
 end
 
 local function isWorkConfig(filename)
-   return fileExists(workFile)
+    return fileExists(workFile)
 end
 
 --------------------------------------------------------------
@@ -54,6 +54,44 @@ end
 
 -- App keybindings
 
+
+local chromeProfilePersonal = "John (Personal)"
+local chromeProfileWork = isWork and "John (Work)" or chromeProfilePersonal
+
+local CHROME = "com.google.Chrome"
+local profileTimer = nil  -- keep a reference so the timer isn't garbage-collected
+
+local function chromeProfile(name, timeout)
+    timeout = timeout or 10
+    local path = {"Profiles", name}
+
+    if profileTimer then profileTimer:stop() end
+
+    local app = hs.application.get(CHROME)
+    if app and app:findMenuItem(path) then
+	app:activate()
+	app:selectMenuItem(path)
+	return
+    end
+
+    hs.application.launchOrFocusByBundleID(CHROME)
+    local start = hs.timer.secondsSinceEpoch()
+
+    profileTimer = hs.timer.doEvery(0.1, function()
+					     local a = hs.application.get(CHROME)
+					     if a and a:findMenuItem(path) then
+						 profileTimer:stop()
+						 profileTimer = nil
+						 a:activate()
+						 a:selectMenuItem(path)
+					     elseif hs.timer.secondsSinceEpoch() - start > timeout then
+						 profileTimer:stop()
+						 profileTimer = nil
+						 hs.alert.show("Chrome profile not found: " .. name)
+					     end
+					 end)
+end
+
 -- return a function to bind to hs.hotkey for launching the specified app
 local function launch_fn(app)
    return function() hs.application.launchOrFocus(app) end
@@ -61,24 +99,22 @@ end
 
 -- hs.hotkey.bind({"alt"}, '1', launch_fn("iTerm"))
 hs.hotkey.bind({"alt"}, '1', launch_fn("kitty"))
-hs.hotkey.bind({"alt", "shift"}, '1', launch_fn("Conductor"))
+hs.hotkey.bind({"alt", "shift"}, '1', launch_fn("Tower"))
 -- editors
 hs.hotkey.bind({"alt"}, '2', launch_fn("Emacs"))
-hs.hotkey.bind({"alt", "shift"}, '2', launch_fn("Emacs"))
-hs.hotkey.bind({"ctrl", "shift"}, '2', launch_fn("Emacs"))
 
 hs.hotkey.bind({"alt"}, '3', launch_fn("Finder"))
 hs.hotkey.bind({"alt"}, '4', launch_fn("Slack"))
 -- hs.hotkey.bind({"alt", "shift"}, '4', launch_fn("Pulse SMS"))
 hs.hotkey.bind({"alt", "shift"}, '4', launch_fn("Android Messages"))
 hs.hotkey.bind({"alt"}, '5', launch_fn("Todoist"))
-hs.hotkey.bind({"alt", "shift"}, '5', launch_fn("TogglDesktop"))
 hs.hotkey.bind({"alt"}, '6', launch_fn("zoom.us"))
-hs.hotkey.bind({"alt", "shift"}, '6', launch_fn("Granola"))
-hs.hotkey.bind({"alt"}, '7', launch_fn("Google Chrome"))
+--hs.hotkey.bind({"alt"}, '7', launch_fn("Google Chrome"))
+hs.hotkey.bind({"alt"}, '7', function() chromeProfile(chromeProfileWork) end)
+hs.hotkey.bind({"alt"}, '8', function() chromeProfile(chromeProfilePersonal) end)
 -- firefox starts in safe mode if alt is pressed on launch so this happens because I have my key repeat set really fast
-hs.hotkey.bind({"alt", "shift"}, '8', launch_fn("Brave Browser"))
-hs.hotkey.bind({"alt"}, '8', launch_fn("Dia"))
+-- hs.hotkey.bind({"alt", "shift"}, '8', launch_fn("Brave Browser"))
+-- hs.hotkey.bind({"alt"}, '8', launch_fn("Dia"))
 hs.hotkey.bind({"alt"}, '9', launch_fn("Obsidian"))
 hs.hotkey.bind({"alt", "shift"}, '9', launch_fn("Kontakt 7"))
 hs.hotkey.bind({"alt"}, '0', launch_fn("MuseScore 4"))

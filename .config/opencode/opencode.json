@@ -4,6 +4,13 @@
     "oh-my-openagent@latest",
     "@tarquinen/opencode-dcp@latest"
   ],
+  "mcp": {
+    "todoist": {
+      "type": "remote",
+      "url": "https://ai.todoist.net/mcp",
+      "enabled": true
+    }
+  },
   "permission": {
     "skill": {
       "*": "allow"
