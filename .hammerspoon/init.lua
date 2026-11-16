@@ -92,6 +92,42 @@ local function chromeProfile(name, timeout)
 					 end)
 end
 
+local function chromeProfile2(name, timeout)
+    timeout = timeout or 10
+    local path = {"Profiles", name}
+    if profileTimer then profileTimer:stop() end
+
+    local app = hs.application.get(CHROME)
+    if not app then
+        log.i('not app')
+        local start = hs.timer.secondsSinceEpoch()
+	hs.application.launchOrFocusByBundleID(CHROME)
+        profileTimer = hs.timer.doEvery(0.1, function()
+						 app = hs.application.get(CHROME)
+						 if app then
+                                                     log.i('found app in timer')
+						     profileTimer:stop()
+						     profileTimer = nil
+						     app:activate()
+						 elseif hs.timer.secondsSinceEpoch() - start > timeout then
+                                                     log.i('timed out looking for app')
+						     profileTimer:stop()
+						     profileTimer = nil
+						     hs.alert.show("Chrome failed to launch")
+						 end
+					     end)
+
+    end
+    app:activate()
+    log.i('app activated')
+    if app:findMenuItem(path) then
+	app:selectMenuItem(path)
+    else
+	log.i('Launched Chrome but could not find profile ' .. path)
+    end
+end
+
+
 -- return a function to bind to hs.hotkey for launching the specified app
 local function launch_fn(app)
    return function() hs.application.launchOrFocus(app) end
